@@ -31,7 +31,7 @@ import {
   type ActionSheetHandle,
   type ActionItem,
 } from '@/components';
-import { tokens, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
 import {
   getEntryByTmdbId,
   deleteEntry,
@@ -44,8 +44,6 @@ import {
 } from '@/db/watchlist';
 import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
-import { usePosterAccent } from '@/hooks/use-poster-accent';
-import { tintTowardsDark } from '@/lib/poster-accent';
 
 const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
@@ -144,7 +142,6 @@ export default function MovieScreen() {
   const heroTitle = details?.title ?? entry?.title ?? seedTitle ?? '';
   const heroYear = entry?.year ?? seedYear;
   const heroPosterPath = details?.posterPath ?? entry?.posterPath ?? seedPosterPath;
-  const accent = usePosterAccent(heroPosterPath);
 
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';
 
@@ -298,7 +295,6 @@ export default function MovieScreen() {
               byline={details?.director ? `Directed by ${details.director}` : null}
               certification={details?.certification ?? null}
               scrollY={scrollY}
-              accent={accent}
             />
           ) : (
             <View style={styles.heroSkeleton}>
@@ -387,22 +383,12 @@ export default function MovieScreen() {
               width: FAB_SIZE,
               height: FAB_SIZE,
               borderRadius: t.radii.pill,
-              backgroundColor: pressed
-                ? accent === tokens.colors.accent.base
-                  ? t.colors.accent.pressed
-                  : tintTowardsDark(accent, 0.2)
-                : accent,
+              backgroundColor: pressed ? t.colors.accent.pressed : t.colors.accent.base,
               ...t.shadows.card,
             },
           ]}
         >
-          <Ionicons
-            name={fabIcon}
-            size={FAB_ICON_SIZE}
-            color={
-              accent === tokens.colors.accent.base ? t.colors.accent.on : t.colors.text.primary
-            }
-          />
+          <Ionicons name={fabIcon} size={FAB_ICON_SIZE} color={t.colors.accent.on} />
         </Pressable>
       </Screen>
       <ActionSheet ref={actionSheetRef} />

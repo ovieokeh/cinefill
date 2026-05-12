@@ -1,6 +1,5 @@
 import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -8,7 +7,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme';
 import { backdropUrl } from '@/lib/tmdb';
-import { tintTowardsDark, withAlpha } from '@/lib/poster-accent';
 import { PosterImage } from './PosterImage';
 import { Text } from './Text';
 import { CertificationBadge } from './CertificationBadge';
@@ -24,8 +22,6 @@ type Props = {
   byline: string | null;
   certification: string | null;
   scrollY?: SharedValue<number>;
-  /** Optional hex accent extracted from the poster for the bottom fade. */
-  accent?: string;
 };
 
 function formatRuntime(runtime: number | null): string | null {
@@ -47,7 +43,6 @@ export function BackdropPosterHeader({
   byline,
   certification,
   scrollY,
-  accent,
 }: Props) {
   const t = useTheme();
   const backdrop = backdropUrl(backdropPath, 'w1280');
@@ -55,6 +50,7 @@ export function BackdropPosterHeader({
     (x): x is string => !!x,
   );
 
+  // Fallback shared value when scrollY isn't provided (component still usable in isolation)
   const fallback = useSharedValue(0);
   const sv = scrollY ?? fallback;
 
@@ -67,17 +63,6 @@ export function BackdropPosterHeader({
       transform: [{ scale }, { translateY }],
     };
   });
-
-  // Build a gradient fading from the (transparent) backdrop through an
-  // accent-tinted band into the app background. Anchored to the bottom of
-  // the backdrop frame so the metadata block below sits on a clean field.
-  const accentDark = accent ? tintTowardsDark(accent, 0.6) : t.colors.bg.app;
-  const gradientColors: [string, string, string, string] = [
-    withAlpha(t.colors.bg.app, 0),
-    accent ? withAlpha(accent, 0.18) : withAlpha(t.colors.bg.app, 0.4),
-    withAlpha(accentDark, 0.85),
-    t.colors.bg.app,
-  ];
 
   return (
     <View>
@@ -92,12 +77,6 @@ export function BackdropPosterHeader({
             />
           ) : null}
         </Animated.View>
-        <LinearGradient
-          colors={gradientColors}
-          locations={[0, 0.55, 0.85, 1]}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
       </View>
 
       <View
