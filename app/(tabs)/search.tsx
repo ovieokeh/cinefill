@@ -25,6 +25,7 @@ import {
   SkeletonPoster,
   SkeletonText,
   FilmBadge,
+  SectionEyebrow,
 } from '@/components';
 import { useTheme } from '@/theme';
 import {
@@ -680,19 +681,7 @@ function DiscoverySection({
   const t = useTheme();
   return (
     <>
-      <Text
-        variant="label"
-        tone="muted"
-        style={{
-          marginTop: t.spacing.xxxl,
-          marginBottom: t.spacing.md,
-          paddingHorizontal: t.spacing.lg,
-          textTransform: 'uppercase',
-          letterSpacing: t.tracking.label,
-        }}
-      >
-        {title}
-      </Text>
+      <SectionEyebrow title={title} />
       {error ? (
         <Text variant="caption" tone="muted" style={{ paddingHorizontal: t.spacing.lg }}>
           Couldn&apos;t load.

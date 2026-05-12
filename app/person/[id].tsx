@@ -16,6 +16,7 @@ import {
   MoviePosterRowSkeleton,
   SkeletonPoster,
   SkeletonText,
+  SectionEyebrow,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getPersonDetails, type PersonCredit, type PersonDetails } from '@/lib/tmdb';
@@ -236,23 +237,8 @@ export default function PersonScreen() {
             </View>
           </View>
 
-          <View
-            style={{
-              marginTop: t.spacing.xxxl,
-              paddingHorizontal: t.spacing.lg,
-            }}
-          >
-            <Text
-              variant="label"
-              tone="muted"
-              style={{
-                marginBottom: t.spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: t.tracking.label,
-              }}
-            >
-              Biography
-            </Text>
+          <SectionEyebrow title="Biography" />
+          <View style={{ paddingHorizontal: t.spacing.lg }}>
             {bio.length === 0 ? (
               <Text variant="body" tone="muted">
                 No biography on file.
@@ -276,21 +262,12 @@ export default function PersonScreen() {
             )}
           </View>
 
-          {groups.map((g) => (
+          {groups.map((g, i) => (
             <View key={g.department}>
-              <Text
-                variant="label"
-                tone="muted"
-                style={{
-                  marginTop: t.spacing.xxxl,
-                  marginBottom: t.spacing.md,
-                  paddingHorizontal: t.spacing.lg,
-                  textTransform: 'uppercase',
-                  letterSpacing: t.tracking.label,
-                }}
-              >
-                {g.department}
-              </Text>
+              <SectionEyebrow
+                number={String(i + 1).padStart(2, '0')}
+                title={g.department}
+              />
               <MoviePosterRow items={g.items} />
             </View>
           ))}

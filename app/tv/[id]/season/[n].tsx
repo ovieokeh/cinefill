@@ -15,14 +15,14 @@ import {
   Text,
   Button,
   PosterImage,
-  StarRating,
   ActionSheet,
   type ActionSheetHandle,
   type ActionItem,
   Skeleton,
   SkeletonText,
-  SectionTitle,
+  SectionEyebrow,
   ErrorBlock,
+  YourLogBlock,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getSeasonDetails, type SeasonDetails, type TvEpisode } from '@/lib/tmdb';
@@ -225,6 +225,10 @@ export default function SeasonDetailScreen() {
 
   const headerTitle = season?.name ?? `Season ${seasonNumber}`;
 
+  // Numbered eyebrows count visible sections only.
+  let sectionNo = 0;
+  const num = () => String(++sectionNo).padStart(2, '0');
+
   return (
     <>
       <Stack.Screen options={{ title: headerTitle }} />
@@ -252,40 +256,27 @@ export default function SeasonDetailScreen() {
             </View>
           </View>
 
-          <View
-            style={{
-              marginTop: t.spacing.xxxl,
-              paddingHorizontal: t.spacing.lg,
-            }}
-          >
-            <Text
-              variant="label"
-              tone="muted"
-              style={{
-                marginBottom: t.spacing.md,
-                textTransform: 'uppercase',
-                letterSpacing: t.tracking.label,
-              }}
-            >
-              Your log
-            </Text>
-            {entry ? (
-              <YourLogBlock entry={entry} onActions={openActions} />
-            ) : (
-              <Button title="Log this season" onPress={openLogForm} />
-            )}
-          </View>
+          {entry ? (
+            <YourLogBlock entry={entry} number={num()} onActions={openActions} />
+          ) : (
+            <>
+              <SectionEyebrow number={num()} title="Your log" />
+              <View style={{ paddingHorizontal: t.spacing.lg }}>
+                <Button title="Log this season" onPress={openLogForm} />
+              </View>
+            </>
+          )}
 
           {season?.overview ? (
             <>
-              <SectionTitle title="Overview" />
+              <SectionEyebrow number={num()} title="Overview" />
               <Text variant="body" style={{ paddingHorizontal: t.spacing.lg }}>
                 {season.overview}
               </Text>
             </>
           ) : null}
 
-          <SectionTitle title="Episodes" />
+          <SectionEyebrow number={num()} title="Episodes" />
           {loading && !season ? (
             <EpisodeListSkeleton />
           ) : error && !season ? (
@@ -320,63 +311,6 @@ export default function SeasonDetailScreen() {
       </Screen>
       <ActionSheet ref={actionSheetRef} />
     </>
-  );
-}
-
-function YourLogBlock({
-  entry,
-  onActions,
-}: {
-  entry: DiaryEntry;
-  onActions: () => void;
-}) {
-  const t = useTheme();
-  const watched = parseISO(entry.watchedDate);
-  return (
-    <View
-      style={[
-        styles.logBlock,
-        {
-          backgroundColor: t.colors.bg.surface,
-          borderRadius: t.radii.md,
-          padding: t.spacing.lg,
-        },
-      ]}
-    >
-      <View style={styles.logHeader}>
-        {entry.rating > 0 ? (
-          <StarRating value={entry.rating} size={20} readOnly />
-        ) : (
-          <Text variant="bodyStrong" tone="muted">
-            Unrated
-          </Text>
-        )}
-        <Pressable
-          onPress={onActions}
-          accessibilityRole="button"
-          accessibilityLabel="Log options"
-          hitSlop={t.spacing.sm}
-          style={{
-            paddingHorizontal: t.spacing.sm,
-            paddingVertical: t.spacing.xs,
-          }}
-        >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={t.spacing.xl}
-            color={t.colors.accent.base}
-          />
-        </Pressable>
-      </View>
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
-        {format(watched, 'EEEE, MMMM d, yyyy')}
-      </Text>
-      {entry.note ? (
-        <Text variant="body" style={{ marginTop: t.spacing.md }}>
-          {entry.note}
-        </Text>
-      ) : null}
-    </View>
   );
 }
 
@@ -466,8 +400,6 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   headerMeta: { flex: 1, minWidth: 0 },
-  logBlock: {},
-  logHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   episodeRow: { flexDirection: 'row', alignItems: 'center' },
   episodeBody: {},
   flex1: { flex: 1, minWidth: 0 },

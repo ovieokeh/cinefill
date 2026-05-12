@@ -18,7 +18,7 @@ import {
   StarRating,
   ActivityLineChart,
   GenreDonut,
-  SectionTitle,
+  SectionEyebrow,
   SettingsSheet,
   TasteCard,
   type SettingsSheetHandle,
@@ -341,12 +341,12 @@ export default function YouScreen() {
 
         {hasRatings ? (
           <>
-            <SectionTitle title="Ratings" />
+            <SectionEyebrow number="01" title="Ratings" />
             <RatingHistogram buckets={ratingBuckets} />
           </>
         ) : null}
 
-        <SectionTitle title="Top genres" />
+        <SectionEyebrow number="02" title="Top genres" />
         {genreMaps && genreBuckets.length > 0 ? (
           <GenreDonut
             buckets={genreBuckets}
@@ -375,7 +375,7 @@ export default function YouScreen() {
           </Text>
         )}
 
-        <SectionTitle title="Top directors" />
+        <SectionEyebrow number="03" title="Top directors" />
         {directorBuckets.length > 0 ? (
           <TopDirectors buckets={directorBuckets} />
         ) : backfilling ? (
@@ -388,19 +388,19 @@ export default function YouScreen() {
           </Text>
         )}
 
-        <SectionTitle title="Activity" />
+        <SectionEyebrow number="04" title="Activity" />
         <ActivityLineChart activity={activity} />
 
         {decadeBuckets.length > 0 ? (
           <>
-            <SectionTitle title="By decade" />
+            <SectionEyebrow number="05" title="By decade" />
             <DecadeBars buckets={decadeBuckets} />
           </>
         ) : null}
 
         {topRatedEntries.length > 0 ? (
           <>
-            <SectionTitle title="Top rated" />
+            <SectionEyebrow number="06" title="Top rated" />
             <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
               {topRatedEntries.map((e) => (
                 <TopRatedRow

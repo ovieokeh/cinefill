@@ -4,8 +4,37 @@ import { Text } from './Text';
 import { PosterImage } from './PosterImage';
 import type { WatchlistItem } from '@/db/watchlist';
 
-export function WatchlistRow({ item }: { item: WatchlistItem }) {
+const META_GENRE_LIMIT = 2;
+
+function formatRuntime(minutes: number | null | undefined): string | null {
+  if (!minutes || minutes <= 0) return null;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+export function WatchlistRow({
+  item,
+  genres,
+  runtime,
+}: {
+  item: WatchlistItem;
+  /** Resolved genre names (e.g. ["Drama", "Thriller"]). Caller maps from cache.genreIds. */
+  genres?: string[];
+  /** Minutes; for TV this is the per-episode runtime. */
+  runtime?: number | null;
+}) {
   const t = useTheme();
+  const metaPieces: string[] = [];
+  if (genres && genres.length > 0) {
+    metaPieces.push(...genres.slice(0, META_GENRE_LIMIT));
+  }
+  const runtimeLabel = formatRuntime(runtime);
+  if (runtimeLabel) metaPieces.push(runtimeLabel);
+  const meta = metaPieces.join(' · ');
+
   return (
     <View
       style={[
@@ -51,6 +80,16 @@ export function WatchlistRow({ item }: { item: WatchlistItem }) {
             </Text>
           ) : null}
         </View>
+        {meta ? (
+          <Text
+            variant="caption"
+            tone="muted"
+            numberOfLines={1}
+            style={{ marginTop: t.spacing.xxs }}
+          >
+            {meta}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

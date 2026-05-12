@@ -13,13 +13,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { format, parseISO } from 'date-fns';
 
 import {
   Screen,
   Text,
   Button,
-  StarRating,
   BackdropPosterHeader,
   BackdropPosterHeaderSkeleton,
   CastCarousel,
@@ -31,8 +29,9 @@ import {
   type ActionSheetHandle,
   type ActionItem,
   Skeleton,
-  SectionTitle,
+  SectionEyebrow,
   ErrorBlock,
+  YourLogBlock,
 } from '@/components';
 import { haptic } from '@/lib/haptics';
 import { useFilmContext } from '@/lib/film-context';
@@ -293,6 +292,10 @@ export default function MovieScreen() {
   const overview = details?.overview ?? '';
   const tagline = details?.tagline ?? '';
 
+  // Numbered eyebrows count visible sections only (skips don't leave gaps).
+  let sectionNo = 0;
+  const num = () => String(++sectionNo).padStart(2, '0');
+
   return (
     <>
       <Stack.Screen options={{ title: navTitle }} />
@@ -318,7 +321,7 @@ export default function MovieScreen() {
             <BackdropPosterHeaderSkeleton />
           )}
 
-          {entry ? <YourLogSection entry={entry} /> : null}
+          {entry ? <YourLogBlock entry={entry} number={num()} /> : null}
 
           {loadingDetails && !details ? (
             <SkeletonBlocks />
@@ -330,7 +333,9 @@ export default function MovieScreen() {
             />
           ) : details ? (
             <>
-              {overview || tagline ? <SectionTitle title="Overview" /> : null}
+              {overview || tagline ? (
+                <SectionEyebrow number={num()} title="Overview" />
+              ) : null}
               {tagline ? (
                 <Text
                   variant="body"
@@ -352,21 +357,21 @@ export default function MovieScreen() {
 
               {details.cast.length > 0 ? (
                 <>
-                  <SectionTitle title="Cast" />
+                  <SectionEyebrow number={num()} title="Cast" />
                   <CastCarousel cast={details.cast} />
                 </>
               ) : null}
 
               {details.keyCrew.length > 0 || details.genres.length > 0 ? (
                 <>
-                  <SectionTitle title="Crew & Genres" />
+                  <SectionEyebrow number={num()} title="Crew & Genres" />
                   <CrewAndGenresSection keyCrew={details.keyCrew} genres={details.genres} mediaType="movie" />
                 </>
               ) : null}
 
               {details.trailerYoutubeKey ? (
                 <>
-                  <SectionTitle title="Trailer" />
+                  <SectionEyebrow number={num()} title="Trailer" />
                   <TrailerCard
                     youtubeKey={details.trailerYoutubeKey}
                     backdropPath={details.backdropPath}
@@ -376,14 +381,14 @@ export default function MovieScreen() {
 
               {details.flatrateProviders.length > 0 ? (
                 <>
-                  <SectionTitle title="Where to watch" />
+                  <SectionEyebrow number={num()} title="Where to watch" />
                   <WatchProviders providers={details.flatrateProviders} />
                 </>
               ) : null}
 
               {details.recommendations.length > 0 ? (
                 <>
-                  <SectionTitle title="Similar movies" />
+                  <SectionEyebrow number={num()} title="Similar movies" />
                   <MoviePosterRow items={details.recommendations} />
                 </>
               ) : null}
@@ -413,50 +418,6 @@ export default function MovieScreen() {
       </Screen>
       <ActionSheet ref={actionSheetRef} />
     </>
-  );
-}
-
-function YourLogSection({ entry }: { entry: DiaryEntry }) {
-  const t = useTheme();
-  const watched = parseISO(entry.watchedDate);
-  return (
-    <View
-      style={{
-        marginTop: t.spacing.xxxl,
-        paddingHorizontal: t.spacing.lg,
-      }}
-    >
-      <Text
-        variant="label"
-        tone="muted"
-        style={{
-          marginBottom: t.spacing.md,
-          textTransform: 'uppercase',
-          letterSpacing: t.tracking.label,
-        }}
-      >
-        Your log
-      </Text>
-      {entry.rating > 0 ? (
-        <StarRating value={entry.rating} size={32} readOnly />
-      ) : (
-        <Text variant="bodyStrong" tone="muted">
-          Unrated
-        </Text>
-      )}
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.sm }}>
-        {format(watched, 'EEEE, MMMM d, yyyy')}
-      </Text>
-      {entry.note ? (
-        <Text variant="body" style={{ marginTop: t.spacing.md }}>
-          {entry.note}
-        </Text>
-      ) : (
-        <Text variant="body" tone="muted" style={{ marginTop: t.spacing.md }}>
-          No note.
-        </Text>
-      )}
-    </View>
   );
 }
 

@@ -19,7 +19,7 @@ import {
   Button,
   BackdropPosterHeader,
   BackdropPosterHeaderSkeleton,
-  SectionTitle,
+  SectionEyebrow,
   ErrorBlock,
   CastCarousel,
   TrailerCard,
@@ -256,6 +256,10 @@ export default function TvScreen() {
   const overview = details?.overview ?? '';
   const tagline = details?.tagline ?? '';
 
+  // Numbered eyebrows count visible sections only.
+  let sectionNo = 0;
+  const num = () => String(++sectionNo).padStart(2, '0');
+
   const fabIcon: keyof typeof Ionicons.glyphMap =
     seasonStats.count > 0 ? 'eye' : inWatchlist ? 'bookmark' : 'add';
   const fabLabel =
@@ -345,7 +349,9 @@ export default function TvScreen() {
             />
           ) : details ? (
             <>
-              {overview || tagline ? <SectionTitle title="Overview" /> : null}
+              {overview || tagline ? (
+                <SectionEyebrow number={num()} title="Overview" />
+              ) : null}
               {tagline ? (
                 <Text
                   variant="body"
@@ -367,7 +373,7 @@ export default function TvScreen() {
 
               {details.seasons.length > 0 ? (
                 <>
-                  <SectionTitle title="Seasons" />
+                  <SectionEyebrow number={num()} title="Seasons" />
                   <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
                     {details.seasons.map((s) => (
                       <SeasonRow
@@ -383,21 +389,21 @@ export default function TvScreen() {
 
               {details.cast.length > 0 ? (
                 <>
-                  <SectionTitle title="Cast" />
+                  <SectionEyebrow number={num()} title="Cast" />
                   <CastCarousel cast={details.cast} />
                 </>
               ) : null}
 
               {details.keyCrew.length > 0 || details.genres.length > 0 ? (
                 <>
-                  <SectionTitle title="Crew & Genres" />
+                  <SectionEyebrow number={num()} title="Crew & Genres" />
                   <CrewAndGenresSection keyCrew={details.keyCrew} genres={details.genres} mediaType="tv" />
                 </>
               ) : null}
 
               {standouts.length > 0 ? (
                 <>
-                  <SectionTitle title="Your standout episodes" />
+                  <SectionEyebrow number={num()} title="Your standout episodes" />
                   <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
                     {standouts.map((ep) => (
                       <StandoutRow key={`${ep.seasonNumber}-${ep.episodeNumber}`} item={ep} />
@@ -408,7 +414,7 @@ export default function TvScreen() {
 
               {details.trailerYoutubeKey ? (
                 <>
-                  <SectionTitle title="Trailer" />
+                  <SectionEyebrow number={num()} title="Trailer" />
                   <TrailerCard
                     youtubeKey={details.trailerYoutubeKey}
                     backdropPath={details.backdropPath}
@@ -418,14 +424,14 @@ export default function TvScreen() {
 
               {details.flatrateProviders.length > 0 ? (
                 <>
-                  <SectionTitle title="Where to watch" />
+                  <SectionEyebrow number={num()} title="Where to watch" />
                   <WatchProviders providers={details.flatrateProviders} />
                 </>
               ) : null}
 
               {details.recommendations.length > 0 ? (
                 <>
-                  <SectionTitle title="Similar shows" />
+                  <SectionEyebrow number={num()} title="Similar shows" />
                   <MoviePosterRow items={details.recommendations} />
                 </>
               ) : null}

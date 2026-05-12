@@ -2,6 +2,8 @@ export { Screen } from './Screen';
 export { Text } from './Text';
 export type { TextProps } from './Text';
 export { SectionTitle } from './SectionTitle';
+export { SectionEyebrow } from './SectionEyebrow';
+export { YourLogBlock } from './YourLogBlock';
 export { ErrorBlock } from './ErrorBlock';
 export { Input } from './Input';
 export { Button } from './Button';
