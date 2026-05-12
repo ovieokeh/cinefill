@@ -7,6 +7,7 @@ export { StarRating } from './StarRating';
 export { PosterImage } from './PosterImage';
 export { DateField } from './DateField';
 export { EntryRow } from './EntryRow';
+export { WatchlistRow } from './WatchlistRow';
 export { BackdropPosterHeader } from './BackdropPosterHeader';
 export { CastCarousel } from './CastCarousel';
 export { TrailerCard } from './TrailerCard';
