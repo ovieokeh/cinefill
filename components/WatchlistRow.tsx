@@ -1,5 +1,6 @@
+import { Fragment } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useTheme } from '@/theme';
+import { useTheme, genreColor } from '@/theme';
 import { Text } from './Text';
 import { PosterImage } from './PosterImage';
 import type { WatchlistItem } from '@/db/watchlist';
@@ -15,25 +16,23 @@ function formatRuntime(minutes: number | null | undefined): string | null {
   return `${h}h ${m}m`;
 }
 
+export type WatchlistRowGenre = { id: number; name: string };
+
 export function WatchlistRow({
   item,
   genres,
   runtime,
 }: {
   item: WatchlistItem;
-  /** Resolved genre names (e.g. ["Drama", "Thriller"]). Caller maps from cache.genreIds. */
-  genres?: string[];
+  /** Resolved genres (id + name). Caller maps from cache.genreIds + the TMDB genre catalogue. */
+  genres?: WatchlistRowGenre[];
   /** Minutes; for TV this is the per-episode runtime. */
   runtime?: number | null;
 }) {
   const t = useTheme();
-  const metaPieces: string[] = [];
-  if (genres && genres.length > 0) {
-    metaPieces.push(...genres.slice(0, META_GENRE_LIMIT));
-  }
+  const shownGenres = (genres ?? []).slice(0, META_GENRE_LIMIT);
   const runtimeLabel = formatRuntime(runtime);
-  if (runtimeLabel) metaPieces.push(runtimeLabel);
-  const meta = metaPieces.join(' · ');
+  const hasMeta = shownGenres.length > 0 || !!runtimeLabel;
 
   return (
     <View
@@ -80,14 +79,24 @@ export function WatchlistRow({
             </Text>
           ) : null}
         </View>
-        {meta ? (
+        {hasMeta ? (
           <Text
             variant="caption"
             tone="muted"
             numberOfLines={1}
             style={{ marginTop: t.spacing.xxs }}
           >
-            {meta}
+            {shownGenres.map((g, idx) => (
+              <Fragment key={g.id}>
+                {idx > 0 ? ' · ' : ''}
+                <Text variant="caption" style={{ color: genreColor(g.id) }}>
+                  {g.name}
+                </Text>
+              </Fragment>
+            ))}
+            {runtimeLabel
+              ? `${shownGenres.length > 0 ? ' · ' : ''}${runtimeLabel}`
+              : ''}
           </Text>
         ) : null}
       </View>

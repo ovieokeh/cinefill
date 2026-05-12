@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@/theme';
+import { useTheme, genreColor } from '@/theme';
 import type { MovieDetails } from '@/lib/tmdb';
 import { Text } from './Text';
 
@@ -59,30 +59,35 @@ export function CrewAndGenresSection({ keyCrew, genres, mediaType }: Props) {
 
       {genres.length > 0 ? (
         <View style={[styles.chips, { marginTop: keyCrew.length > 0 ? t.spacing.lg : 0, gap: t.spacing.sm }]}>
-          {genres.map((g) => (
-            <Pressable
-              key={g.id}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/search',
-                  params: { mediaType, genreId: String(g.id), genreName: g.name },
-                })
-              }
-              style={({ pressed }) => [
-                {
-                  backgroundColor: t.colors.bg.elevated,
-                  borderRadius: t.radii.pill,
-                  paddingHorizontal: t.spacing.md,
-                  paddingVertical: t.spacing.xs,
-                  opacity: pressed ? t.opacity.pressed : 1,
-                },
-              ]}
-            >
-              <Text variant="caption" tone="secondary">
-                {g.name}
-              </Text>
-            </Pressable>
-          ))}
+          {genres.map((g) => {
+            const swatch = genreColor(g.id);
+            return (
+              <Pressable
+                key={g.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/search',
+                    params: { mediaType, genreId: String(g.id), genreName: g.name },
+                  })
+                }
+                style={({ pressed }) => [
+                  {
+                    backgroundColor: t.colors.bg.elevated,
+                    borderRadius: t.radii.pill,
+                    paddingHorizontal: t.spacing.md,
+                    paddingVertical: t.spacing.xs,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: swatch,
+                    opacity: pressed ? t.opacity.pressed : 1,
+                  },
+                ]}
+              >
+                <Text variant="caption" style={{ color: swatch }}>
+                  {g.name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
     </View>

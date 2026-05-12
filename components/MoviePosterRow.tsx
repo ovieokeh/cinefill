@@ -68,11 +68,16 @@ function Item({ item }: { item: MoviePosterItem }) {
           style={[styles.filmBadge, { top: t.spacing.xs, right: t.spacing.xs }]}
         />
       </View>
-      <Text variant="caption" style={{ marginTop: t.spacing.xs }}>
+      <Text variant="caption" numberOfLines={1} style={{ marginTop: t.spacing.xs }}>
         {item.title}
       </Text>
       {metaLine ? (
-        <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+        <Text
+          variant="caption"
+          tone="muted"
+          numberOfLines={1}
+          style={{ marginTop: t.spacing.xxs }}
+        >
           {metaLine}
         </Text>
       ) : null}

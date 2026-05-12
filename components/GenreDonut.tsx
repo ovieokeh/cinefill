@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, G } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
-import { useTheme } from '@/theme';
+import { useTheme, genreColor } from '@/theme';
 import { Text } from './Text';
 import type { GenreBucket } from '@/lib/stats';
 
@@ -129,9 +129,7 @@ export function GenreDonut({
                   index={i}
                   arcLen={s.arcLen}
                   offset={s.offset}
-                  color={
-                    t.colors.chart.series[i % t.colors.chart.series.length]
-                  }
+                  color={genreColor(s.bucket.dominantGenreId)}
                 />
               ))}
             </G>
@@ -149,7 +147,7 @@ export function GenreDonut({
       </View>
 
       <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
-        {slices.map((s, i) => (
+        {slices.map((s) => (
           <Pressable
             key={`${s.bucket.dominantMediaType}-${s.bucket.dominantGenreId}-${s.bucket.label}`}
             onPress={() => onPress(s.bucket)}
@@ -163,8 +161,7 @@ export function GenreDonut({
                 width: t.spacing.md,
                 height: t.spacing.md,
                 borderRadius: t.radii.pill,
-                backgroundColor:
-                  t.colors.chart.series[i % t.colors.chart.series.length],
+                backgroundColor: genreColor(s.bucket.dominantGenreId),
               }}
             />
             <Text variant="caption" style={styles.legendLabel} numberOfLines={1}>

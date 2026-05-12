@@ -51,6 +51,40 @@ export const colors = {
       '#3A424D',
     ],
   },
+  // TMDB genre IDs → curated dark-bg-friendly accent colour. Movie and TV
+  // catalogues are unioned: ids that exist in both (e.g. Drama 18) only appear
+  // once; TV-only ids (10759, 10762, ...) are listed below the movie set.
+  // Unknown ids fall back to `genreFallback`.
+  genre: {
+    28: '#D8493B',     // Action
+    12: '#E08E47',     // Adventure
+    16: '#5DBED1',     // Animation
+    35: '#E0B354',     // Comedy
+    80: '#6C7280',     // Crime
+    99: '#7A8FA8',     // Documentary
+    18: '#B25A6E',     // Drama
+    10751: '#88C97A',  // Family
+    14: '#A073C9',     // Fantasy
+    36: '#B58836',     // History
+    27: '#8C2A24',     // Horror
+    10402: '#E8729F',  // Music
+    9648: '#5E6CB8',   // Mystery
+    10749: '#E8889B',  // Romance
+    878: '#4D9CC8',    // Science Fiction
+    10770: '#5D636C',  // TV Movie
+    53: '#A07238',     // Thriller
+    10752: '#6B7548',  // War
+    37: '#C39657',     // Western
+    10759: '#D8493B',  // TV: Action & Adventure
+    10762: '#88C5D8',  // TV: Kids
+    10763: '#7A8FA8',  // TV: News
+    10764: '#E08E47',  // TV: Reality
+    10765: '#6A7DC8',  // TV: Sci-Fi & Fantasy
+    10766: '#E8729F',  // TV: Soap
+    10767: '#6C7280',  // TV: Talk
+    10768: '#6B7548',  // TV: War & Politics
+  } as Record<number, string>,
+  genreFallback: '#9CA3AF',
 } as const;
 
 export const spacing = {

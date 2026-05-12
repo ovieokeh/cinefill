@@ -187,9 +187,10 @@ export default function WatchlistScreen() {
           const c = cacheByKey.get(`${item.mediaType}:${item.tmdbId}`);
           const map = genreMaps?.[item.mediaType];
           const genres = c && map
-            ? c.genreIds
-                .map((id) => map.get(id))
-                .filter((n): n is string => typeof n === 'string')
+            ? c.genreIds.flatMap((id) => {
+                const name = map.get(id);
+                return name ? [{ id, name }] : [];
+              })
             : undefined;
           return (
             <Pressable

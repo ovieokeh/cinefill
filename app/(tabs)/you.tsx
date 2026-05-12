@@ -443,6 +443,7 @@ function SettingsRow({ onPress }: { onPress: () => void }) {
         justifyContent: 'space-between',
         paddingHorizontal: t.spacing.lg,
         paddingTop: t.spacing.sm,
+        paddingBottom: t.spacing.md,
       }}
     >
       <Wordmark width={96} />
