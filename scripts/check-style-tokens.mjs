@@ -10,6 +10,9 @@ const ROOT = process.cwd();
 const EXEMPT_FILES = new Set([
   'theme/tokens.ts',
   'scripts/check-style-tokens.mjs',
+  // Expo build configuration — its color literals (adaptive icon bg, splash bg)
+  // are consumed by the native build, not RN runtime style code.
+  'app.config.ts',
 ]);
 
 const FORBIDDEN_NUMERIC_PROPERTIES = [

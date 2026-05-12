@@ -11,9 +11,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   ios: {
+    bundleIdentifier: "com.nerdylegs.cinefill",
     supportsTablet: true,
   },
   android: {
+    package: "com.nerdylegs.cinefill",
     adaptiveIcon: {
       backgroundColor: '#0F1216',
       foregroundImage: './assets/images/android-icon-foreground.png',
