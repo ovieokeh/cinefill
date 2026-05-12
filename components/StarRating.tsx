@@ -1,6 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme';
+import { haptic } from '@/lib/haptics';
 
 type Props = {
   value: number;
@@ -18,6 +19,7 @@ export function StarRating({ value, onChange, size = 28, readOnly = false }: Pro
 
   function pick(target: number) {
     if (!interactive) return;
+    haptic.selection();
     onChange?.(value === target ? 0 : target);
   }
 

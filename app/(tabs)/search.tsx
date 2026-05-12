@@ -17,9 +17,13 @@ import {
   Input,
   PosterImage,
   MoviePosterRow,
+  MoviePosterRowSkeleton,
   ActionSheet,
   type ActionItem,
   type ActionSheetHandle,
+  Skeleton,
+  SkeletonPoster,
+  SkeletonText,
 } from '@/components';
 import { useTheme } from '@/theme';
 import {
@@ -357,11 +361,7 @@ function ResultsBody({
   }, [query, mediaType, genre]);
 
   if (loading && results.length === 0) {
-    return (
-      <View style={[styles.centered, { paddingTop: t.spacing.xl }]}>
-        <ActivityIndicator color={t.colors.text.muted} />
-      </View>
-    );
+    return <ResultListSkeleton kind={mediaType === 'person' ? 'avatar' : 'poster'} />;
   }
   if (error) {
     return (
@@ -464,6 +464,51 @@ function SearchResultRow({
 }
 
 const AVATAR_SIZE = 48;
+
+function SearchResultRowSkeleton({ kind }: { kind: 'poster' | 'avatar' }) {
+  const t = useTheme();
+  return (
+    <View
+      style={[
+        styles.resultRow,
+        {
+          backgroundColor: t.colors.bg.surface,
+          borderRadius: t.radii.md,
+          padding: t.spacing.md,
+        },
+      ]}
+    >
+      {kind === 'avatar' ? (
+        <Skeleton width={AVATAR_SIZE} height={AVATAR_SIZE} borderRadius={t.radii.pill} />
+      ) : (
+        <SkeletonPoster size="sm" />
+      )}
+      <View style={[styles.resultBody, { marginLeft: t.spacing.md }]}>
+        <SkeletonText variant="bodyStrong" width="75%" />
+        <View style={{ marginTop: t.spacing.xxs }}>
+          <SkeletonText variant="caption" width="35%" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ResultListSkeleton({ kind, count = 8 }: { kind: 'poster' | 'avatar'; count?: number }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        paddingHorizontal: t.spacing.lg,
+        paddingTop: t.spacing.md,
+        gap: t.spacing.sm,
+      }}
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <SearchResultRowSkeleton key={i} kind={kind} />
+      ))}
+    </View>
+  );
+}
 
 function PersonAvatar({ profilePath }: { profilePath: string | null }) {
   const t = useTheme();
@@ -581,9 +626,7 @@ function DiscoverySection({
           Couldn&apos;t load.
         </Text>
       ) : items == null ? (
-        <View style={[styles.centered, { paddingVertical: t.spacing.lg }]}>
-          <ActivityIndicator color={t.colors.text.muted} size="small" />
-        </View>
+        <MoviePosterRowSkeleton />
       ) : items.length === 0 ? (
         <Text variant="caption" tone="muted" style={{ paddingHorizontal: t.spacing.lg }}>
           Nothing today.
@@ -626,11 +669,7 @@ function PopularPeopleList({ router }: { router: ReturnType<typeof useRouter> })
   );
 
   if (loading && people.length === 0) {
-    return (
-      <View style={[styles.centered, { paddingTop: t.spacing.xl }]}>
-        <ActivityIndicator color={t.colors.text.muted} />
-      </View>
-    );
+    return <ResultListSkeleton kind="avatar" />;
   }
   if (error) {
     return (
@@ -814,11 +853,7 @@ function GridView({
     );
   }
   if (loading && items.length === 0) {
-    return (
-      <View style={[styles.centered, { paddingTop: t.spacing.xl }]}>
-        <ActivityIndicator color={t.colors.text.muted} />
-      </View>
-    );
+    return <GridSkeleton />;
   }
   return (
     <FlatList
@@ -843,6 +878,37 @@ function GridView({
         ) : null
       }
     />
+  );
+}
+
+function GridSkeleton({ rows = 3 }: { rows?: number }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        paddingHorizontal: t.spacing.lg,
+        paddingTop: t.spacing.md,
+        gap: t.spacing.lg,
+      }}
+    >
+      {Array.from({ length: rows }).map((_, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: t.spacing.md }}>
+          {Array.from({ length: 2 }).map((_, c) => (
+            <View key={c} style={styles.card}>
+              <View style={styles.poster}>
+                <Skeleton width="100%" height="100%" borderRadius={t.radii.sm} />
+              </View>
+              <View style={{ marginTop: t.spacing.sm }}>
+                <SkeletonText variant="bodyStrong" width="80%" />
+              </View>
+              <View style={{ marginTop: t.spacing.xxs }}>
+                <SkeletonText variant="caption" width="35%" />
+              </View>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 

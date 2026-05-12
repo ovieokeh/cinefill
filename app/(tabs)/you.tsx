@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, StyleSheet, Pressable } from 'react-native';
+import Animated, {
+  Easing,
+  SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { Screen, Text, Button, PosterImage, StarRating } from '@/components';
@@ -43,6 +50,10 @@ const TOP_GENRE_LIMIT = 8;
 const TOP_RATED_LIMIT = 5;
 const ACTIVITY_MONTHS = 12;
 const BACKFILL_CONCURRENCY = 6;
+
+const BAR_ANIM_DURATION = 500;
+const BAR_ANIM_STAGGER = 40;
+const easeOutCubic = Easing.out(Easing.cubic);
 
 const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
@@ -342,6 +353,94 @@ export default function YouScreen() {
 
 // ----- subcomponents -----
 
+function useChartProgress(count: number) {
+  const progress = useSharedValue(0);
+  const totalMs =
+    count <= 0 ? BAR_ANIM_DURATION : BAR_ANIM_DURATION + (count - 1) * BAR_ANIM_STAGGER;
+  useFocusEffect(
+    useCallback(() => {
+      progress.value = 0;
+      progress.value = withTiming(1, { duration: totalMs });
+    }, [progress, totalMs]),
+  );
+  return { progress, totalMs };
+}
+
+function AnimatedHBar({
+  progress,
+  totalMs,
+  index,
+  ratio,
+  height,
+  color,
+  radius,
+}: {
+  progress: SharedValue<number>;
+  totalMs: number;
+  index: number;
+  ratio: number;
+  height: number;
+  color: string;
+  radius: number;
+}) {
+  const animStyle = useAnimatedStyle(() => {
+    const elapsed = progress.value * totalMs;
+    const localMs = Math.max(
+      0,
+      Math.min(BAR_ANIM_DURATION, elapsed - index * BAR_ANIM_STAGGER),
+    );
+    const local = easeOutCubic(localMs / BAR_ANIM_DURATION);
+    return { width: `${ratio * local * 100}%` };
+  });
+  return (
+    <Animated.View
+      style={[{ height, backgroundColor: color, borderRadius: radius }, animStyle]}
+    />
+  );
+}
+
+function AnimatedVBar({
+  progress,
+  totalMs,
+  index,
+  ratio,
+  width,
+  color,
+  radius,
+}: {
+  progress: SharedValue<number>;
+  totalMs: number;
+  index: number;
+  ratio: number;
+  width: number;
+  color: string;
+  radius: number;
+}) {
+  const animStyle = useAnimatedStyle(() => {
+    const elapsed = progress.value * totalMs;
+    const localMs = Math.max(
+      0,
+      Math.min(BAR_ANIM_DURATION, elapsed - index * BAR_ANIM_STAGGER),
+    );
+    const local = easeOutCubic(localMs / BAR_ANIM_DURATION);
+    const h = ratio * local * ACTIVITY_BAR_MAX_HEIGHT;
+    return { height: local > 0 ? Math.max(2, h) : 0 };
+  });
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          backgroundColor: color,
+          borderTopLeftRadius: radius,
+          borderTopRightRadius: radius,
+        },
+        animStyle,
+      ]}
+    />
+  );
+}
+
 function SummaryCard({
   sum,
   watchlistCount,
@@ -437,9 +536,10 @@ function RatingHistogram({
 }) {
   const t = useTheme();
   const max = Math.max(1, ...buckets.map((b) => b.count));
+  const { progress, totalMs } = useChartProgress(buckets.length);
   return (
     <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.xs }}>
-      {buckets.map((b) => (
+      {buckets.map((b, i) => (
         <View key={b.label} style={[styles.barRow, { gap: t.spacing.sm }]}>
           <Text variant="caption" tone="muted" style={{ width: 32 }}>
             {b.label}
@@ -454,13 +554,14 @@ function RatingHistogram({
               },
             ]}
           >
-            <View
-              style={{
-                width: `${(b.count / max) * 100}%`,
-                height: BAR_TRACK_HEIGHT,
-                backgroundColor: t.colors.accent.base,
-                borderRadius: t.radii.pill,
-              }}
+            <AnimatedHBar
+              progress={progress}
+              totalMs={totalMs}
+              index={i}
+              ratio={b.count / max}
+              height={BAR_TRACK_HEIGHT}
+              color={t.colors.accent.base}
+              radius={t.radii.pill}
             />
           </View>
           <Text variant="caption" tone="muted" style={{ width: 32, textAlign: 'right' }}>
@@ -481,9 +582,10 @@ function TopGenres({
 }) {
   const t = useTheme();
   const max = Math.max(1, ...buckets.map((b) => b.count));
+  const { progress, totalMs } = useChartProgress(buckets.length);
   return (
     <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
-      {buckets.map((b) => (
+      {buckets.map((b, i) => (
         <Pressable
           key={`${b.dominantMediaType}-${b.dominantGenreId}-${b.label}`}
           onPress={() => onPress(b)}
@@ -505,13 +607,14 @@ function TopGenres({
               },
             ]}
           >
-            <View
-              style={{
-                width: `${(b.count / max) * 100}%`,
-                height: BAR_TRACK_HEIGHT_LG,
-                backgroundColor: t.colors.accent.base,
-                borderRadius: t.radii.pill,
-              }}
+            <AnimatedHBar
+              progress={progress}
+              totalMs={totalMs}
+              index={i}
+              ratio={b.count / max}
+              height={BAR_TRACK_HEIGHT_LG}
+              color={t.colors.accent.base}
+              radius={t.radii.pill}
             />
           </View>
           <Text variant="caption" tone="muted" style={{ width: 32, textAlign: 'right' }}>
@@ -530,6 +633,7 @@ function ActivityChart({
 }) {
   const t = useTheme();
   const max = Math.max(1, ...activity.map((a) => a.count));
+  const { progress, totalMs } = useChartProgress(activity.length);
   return (
     <View
       style={[
@@ -541,31 +645,28 @@ function ActivityChart({
         },
       ]}
     >
-      {activity.map((a) => {
-        const h = (a.count / max) * ACTIVITY_BAR_MAX_HEIGHT;
-        return (
-          <View key={`${a.year}-${a.month}`} style={styles.activityBarCol}>
-            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-              <View
-                style={{
-                  width: ACTIVITY_BAR_WIDTH,
-                  height: Math.max(2, h),
-                  backgroundColor: t.colors.accent.base,
-                  borderTopLeftRadius: t.radii.sm,
-                  borderTopRightRadius: t.radii.sm,
-                }}
-              />
-            </View>
-            <Text
-              variant="caption"
-              tone="muted"
-              style={{ marginTop: t.spacing.xxs, textAlign: 'center' }}
-            >
-              {MONTH_LETTERS[a.month]}
-            </Text>
+      {activity.map((a, i) => (
+        <View key={`${a.year}-${a.month}`} style={styles.activityBarCol}>
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <AnimatedVBar
+              progress={progress}
+              totalMs={totalMs}
+              index={i}
+              ratio={a.count / max}
+              width={ACTIVITY_BAR_WIDTH}
+              color={t.colors.accent.base}
+              radius={t.radii.sm}
+            />
           </View>
-        );
-      })}
+          <Text
+            variant="caption"
+            tone="muted"
+            style={{ marginTop: t.spacing.xxs, textAlign: 'center' }}
+          >
+            {MONTH_LETTERS[a.month]}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -577,9 +678,10 @@ function DecadeBars({
 }) {
   const t = useTheme();
   const max = Math.max(1, ...buckets.map((b) => b.count));
+  const { progress, totalMs } = useChartProgress(buckets.length);
   return (
     <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.xs }}>
-      {buckets.map((b) => (
+      {buckets.map((b, i) => (
         <View key={b.label} style={[styles.barRow, { gap: t.spacing.sm }]}>
           <Text variant="caption" style={{ width: 56 }}>
             {b.label}
@@ -594,13 +696,14 @@ function DecadeBars({
               },
             ]}
           >
-            <View
-              style={{
-                width: `${(b.count / max) * 100}%`,
-                height: BAR_TRACK_HEIGHT,
-                backgroundColor: t.colors.accent.base,
-                borderRadius: t.radii.pill,
-              }}
+            <AnimatedHBar
+              progress={progress}
+              totalMs={totalMs}
+              index={i}
+              ratio={b.count / max}
+              height={BAR_TRACK_HEIGHT}
+              color={t.colors.accent.base}
+              radius={t.radii.pill}
             />
           </View>
           <Text variant="caption" tone="muted" style={{ width: 32, textAlign: 'right' }}>

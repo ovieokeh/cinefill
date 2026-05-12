@@ -7,6 +7,7 @@ import { Screen, Text, Input, Button, PosterImage, StarRating, DateField } from 
 import { useTheme } from '@/theme';
 import { addEntry, type EntryMediaType } from '@/db/diary';
 import { isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
+import { haptic } from '@/lib/haptics';
 
 type SeededTarget = {
   tmdbId: number;
@@ -101,6 +102,7 @@ export default function NewEntryScreen() {
           await removeFromWatchlist(target.tmdbId, 'movie');
         }
       }
+      haptic.success();
       router.back();
     } catch (e) {
       setSaving(false);

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   Pressable,
 } from 'react-native';
 import Animated, {
@@ -19,6 +18,7 @@ import {
   Text,
   Button,
   BackdropPosterHeader,
+  BackdropPosterHeaderSkeleton,
   CastCarousel,
   TrailerCard,
   WatchProviders,
@@ -29,7 +29,9 @@ import {
   ActionSheet,
   type ActionItem,
   type ActionSheetHandle,
+  Skeleton,
 } from '@/components';
+import { haptic } from '@/lib/haptics';
 import { useTheme } from '@/theme';
 import { getTvDetails, type TvDetails, type TvSeasonSummary } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
@@ -153,6 +155,7 @@ export default function TvScreen() {
 
   const toggleWatchlist = useCallback(async () => {
     if (!validId || !heroTitle) return;
+    haptic.light();
     try {
       if (inWatchlist) {
         await removeFromWatchlist(tvId, 'tv');
@@ -174,6 +177,7 @@ export default function TvScreen() {
 
   const openActions = useCallback(() => {
     if (!validId || !heroTitle) return;
+    haptic.medium();
     const actions: ActionItem[] = [];
 
     // "Log a season" — pick the next unlogged season; if all logged, fall back to S1.
@@ -280,9 +284,7 @@ export default function TvScreen() {
               scrollY={scrollY}
             />
           ) : (
-            <View style={styles.heroSkeleton}>
-              <ActivityIndicator color={t.colors.text.muted} />
-            </View>
+            <BackdropPosterHeaderSkeleton />
           )}
 
           {statusLine ? (
@@ -553,21 +555,10 @@ function SkeletonBlocks() {
   const t = useTheme();
   return (
     <View style={{ marginTop: t.spacing.xxxl, paddingHorizontal: t.spacing.lg }}>
-      <View
-        style={{
-          height: SKELETON_BLOCK_HEIGHT,
-          backgroundColor: t.colors.bg.elevated,
-          borderRadius: t.radii.md,
-        }}
-      />
-      <View
-        style={{
-          marginTop: t.spacing.md,
-          height: SKELETON_BLOCK_HEIGHT,
-          backgroundColor: t.colors.bg.elevated,
-          borderRadius: t.radii.md,
-        }}
-      />
+      <Skeleton height={SKELETON_BLOCK_HEIGHT} />
+      <View style={{ marginTop: t.spacing.md }}>
+        <Skeleton height={SKELETON_BLOCK_HEIGHT} />
+      </View>
     </View>
   );
 }
@@ -598,12 +589,6 @@ function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroSkeleton: {
-    width: '100%',
-    aspectRatio: 16 / 9,
     alignItems: 'center',
     justifyContent: 'center',
   },

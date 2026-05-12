@@ -3,7 +3,6 @@ import {
   ScrollView,
   View,
   StyleSheet,
-  ActivityIndicator,
   Pressable,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,6 +13,9 @@ import {
   Button,
   PosterImage,
   MoviePosterRow,
+  MoviePosterRowSkeleton,
+  SkeletonPoster,
+  SkeletonText,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getPersonDetails, type PersonCredit, type PersonDetails } from '@/lib/tmdb';
@@ -121,9 +123,47 @@ export default function PersonScreen() {
       <>
         <Stack.Screen options={{ title: '' }} />
         <Screen padded={false}>
-          <View style={styles.centered}>
-            <ActivityIndicator color={t.colors.text.muted} />
-          </View>
+          <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
+            <View
+              style={[
+                styles.heroRow,
+                { paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md },
+              ]}
+            >
+              <SkeletonPoster size="lg" />
+              <View style={[styles.heroMeta, { marginLeft: t.spacing.md }]}>
+                <SkeletonText variant="displayMd" width="85%" />
+                <View style={{ marginTop: t.spacing.xs }}>
+                  <SkeletonText variant="caption" width="65%" />
+                </View>
+              </View>
+            </View>
+
+            <View style={{ marginTop: t.spacing.xxxl, paddingHorizontal: t.spacing.lg }}>
+              <View style={{ marginBottom: t.spacing.md }}>
+                <SkeletonText variant="label" width="25%" />
+              </View>
+              <SkeletonText variant="body" width="100%" />
+              <View style={{ marginTop: t.spacing.xs }}>
+                <SkeletonText variant="body" width="98%" />
+              </View>
+              <View style={{ marginTop: t.spacing.xs }}>
+                <SkeletonText variant="body" width="92%" />
+              </View>
+              <View style={{ marginTop: t.spacing.xs }}>
+                <SkeletonText variant="body" width="60%" />
+              </View>
+            </View>
+
+            <View style={{ marginTop: t.spacing.xxxl }}>
+              <View
+                style={{ paddingHorizontal: t.spacing.lg, marginBottom: t.spacing.md }}
+              >
+                <SkeletonText variant="label" width="22%" />
+              </View>
+              <MoviePosterRowSkeleton />
+            </View>
+          </ScrollView>
         </Screen>
       </>
     );

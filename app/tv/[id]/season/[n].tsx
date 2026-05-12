@@ -3,7 +3,6 @@ import {
   ScrollView,
   View,
   StyleSheet,
-  ActivityIndicator,
   Pressable,
   Alert,
 } from 'react-native';
@@ -20,6 +19,8 @@ import {
   ActionSheet,
   type ActionSheetHandle,
   type ActionItem,
+  Skeleton,
+  SkeletonText,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getSeasonDetails, type SeasonDetails, type TvEpisode } from '@/lib/tmdb';
@@ -33,6 +34,7 @@ import {
   markStandout,
   unmarkStandout,
 } from '@/db/standouts';
+import { haptic } from '@/lib/haptics';
 
 export default function SeasonDetailScreen() {
   const t = useTheme();
@@ -161,6 +163,7 @@ export default function SeasonDetailScreen() {
 
   const toggleStandout = useCallback(
     async (episode: TvEpisode) => {
+      haptic.selection();
       const wasMarked = standoutKeys.has(episode.episodeNumber);
       // Optimistic UI flip
       setStandoutKeys((prev) => {
@@ -279,9 +282,7 @@ export default function SeasonDetailScreen() {
 
           <SectionTitle title="Episodes" />
           {loading && !season ? (
-            <View style={[styles.centered, { paddingVertical: t.spacing.xxxl }]}>
-              <ActivityIndicator color={t.colors.text.muted} />
-            </View>
+            <EpisodeListSkeleton />
           ) : error && !season ? (
             <ErrorBlock message={error} onRetry={() => setRetryKey((k) => k + 1)} />
           ) : season ? (
@@ -417,6 +418,36 @@ function EpisodeRow({
           color={marked ? t.colors.danger : t.colors.text.muted}
         />
       </Pressable>
+    </View>
+  );
+}
+
+function EpisodeListSkeleton({ count = 6 }: { count?: number }) {
+  const t = useTheme();
+  return (
+    <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.episodeRow,
+            {
+              backgroundColor: t.colors.bg.surface,
+              borderRadius: t.radii.md,
+              padding: t.spacing.md,
+              gap: t.spacing.md,
+            },
+          ]}
+        >
+          <View style={[styles.episodeBody, styles.flex1]}>
+            <SkeletonText variant="bodyStrong" width="70%" />
+            <View style={{ marginTop: t.spacing.xxs }}>
+              <SkeletonText variant="caption" width="20%" />
+            </View>
+          </View>
+          <Skeleton width={t.spacing.xl} height={t.spacing.xl} borderRadius={t.radii.sm} />
+        </View>
+      ))}
     </View>
   );
 }

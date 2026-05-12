@@ -33,6 +33,10 @@ export const colors = {
   },
   overlay: 'rgba(0,0,0,0.55)',
   transparent: 'transparent',
+  shimmer: {
+    highlight: '#FFFFFF14',
+    highlightTransparent: '#FFFFFF00',
+  },
 } as const;
 
 export const spacing = {

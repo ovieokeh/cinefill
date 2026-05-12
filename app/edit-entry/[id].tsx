@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -11,9 +11,13 @@ import {
   PosterImage,
   StarRating,
   DateField,
+  Skeleton,
+  SkeletonPoster,
+  SkeletonText,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getEntry, updateEntry, type DiaryEntry } from '@/db/diary';
+import { haptic } from '@/lib/haptics';
 
 type EntryState = DiaryEntry | null | 'missing';
 
@@ -61,6 +65,7 @@ export default function EditEntryScreen() {
         rating,
         note: note.trim(),
       });
+      haptic.success();
       router.back();
     } catch (e) {
       setSaving(false);
@@ -94,8 +99,46 @@ export default function EditEntryScreen() {
   if (entry == null) {
     return (
       <Screen padded={false}>
-        <View style={styles.centered}>
-          <ActivityIndicator color={t.colors.text.muted} />
+        <View
+          style={{
+            paddingHorizontal: t.spacing.lg,
+            paddingTop: t.spacing.md,
+          }}
+        >
+          <View style={styles.pickedRow}>
+            <SkeletonPoster size="lg" />
+            <View style={[styles.pickedBody, { marginLeft: t.spacing.md }]}>
+              <SkeletonText variant="titleLg" width="80%" />
+              <View style={{ marginTop: t.spacing.xs }}>
+                <SkeletonText variant="caption" width="30%" />
+              </View>
+            </View>
+          </View>
+
+          <View style={{ marginTop: t.spacing.xl }}>
+            <View style={{ marginBottom: t.spacing.xs }}>
+              <SkeletonText variant="label" width="20%" />
+            </View>
+            <Skeleton width="100%" height={46} borderRadius={t.radii.md} />
+          </View>
+
+          <View style={{ marginTop: t.spacing.lg }}>
+            <View style={{ marginBottom: t.spacing.sm }}>
+              <SkeletonText variant="label" width="18%" />
+            </View>
+            <Skeleton
+              width={5 * 32 + 4 * t.spacing.xs}
+              height={32}
+              borderRadius={t.radii.sm}
+            />
+          </View>
+
+          <View style={{ marginTop: t.spacing.lg }}>
+            <View style={{ marginBottom: t.spacing.xs }}>
+              <SkeletonText variant="label" width="14%" />
+            </View>
+            <Skeleton width="100%" height={96} borderRadius={t.radii.md} />
+          </View>
         </View>
       </Screen>
     );

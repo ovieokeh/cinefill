@@ -8,6 +8,7 @@ import Animated, {
 import { useTheme } from '@/theme';
 import { backdropUrl } from '@/lib/tmdb';
 import { PosterImage } from './PosterImage';
+import { Skeleton, SkeletonPoster, SkeletonText } from './Skeleton';
 import { Text } from './Text';
 import { CertificationBadge } from './CertificationBadge';
 
@@ -113,6 +114,37 @@ export function BackdropPosterHeader({
               {byline}
             </Text>
           ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+export function BackdropPosterHeaderSkeleton() {
+  const t = useTheme();
+  return (
+    <View>
+      <View style={styles.backdropFrame}>
+        <Skeleton width="100%" height="100%" borderRadius={0} />
+      </View>
+      <View
+        style={[
+          styles.row,
+          {
+            paddingHorizontal: t.spacing.lg,
+            marginTop: -t.spacing.xxxl,
+          },
+        ]}
+      >
+        <SkeletonPoster size="lg" />
+        <View style={[styles.meta, { marginLeft: t.spacing.md, paddingTop: t.spacing.xxxl }]}>
+          <SkeletonText variant="displayMd" width="80%" />
+          <View style={{ marginTop: t.spacing.xs }}>
+            <SkeletonText variant="caption" width="55%" />
+          </View>
+          <View style={{ marginTop: t.spacing.xxs }}>
+            <SkeletonText variant="caption" width="40%" />
+          </View>
         </View>
       </View>
     </View>

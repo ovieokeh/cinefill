@@ -2,6 +2,7 @@ import { FlatList, View, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { PosterImage } from './PosterImage';
+import { SkeletonPoster, SkeletonText } from './Skeleton';
 import { Text } from './Text';
 
 const ITEM_WIDTH = 96;
@@ -103,6 +104,36 @@ function Item({ item }: { item: MoviePosterItem }) {
     >
       {body}
     </Pressable>
+  );
+}
+
+export function MoviePosterRowSkeleton({ count = 6 }: { count?: number }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        paddingHorizontal: t.spacing.lg,
+        flexDirection: 'row',
+      }}
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.item,
+            { width: ITEM_WIDTH, marginRight: i === count - 1 ? 0 : t.spacing.md },
+          ]}
+        >
+          <SkeletonPoster size="md" />
+          <View style={{ marginTop: t.spacing.xs, width: '100%' }}>
+            <SkeletonText variant="caption" width="90%" />
+          </View>
+          <View style={{ marginTop: t.spacing.xxs, width: '100%' }}>
+            <SkeletonText variant="caption" width="50%" />
+          </View>
+        </View>
+      ))}
+    </View>
   );
 }
 

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   Pressable,
   Alert,
 } from 'react-native';
@@ -22,6 +21,7 @@ import {
   Button,
   StarRating,
   BackdropPosterHeader,
+  BackdropPosterHeaderSkeleton,
   CastCarousel,
   TrailerCard,
   WatchProviders,
@@ -30,7 +30,9 @@ import {
   ActionSheet,
   type ActionSheetHandle,
   type ActionItem,
+  Skeleton,
 } from '@/components';
+import { haptic } from '@/lib/haptics';
 import { useTheme } from '@/theme';
 import {
   getEntryByTmdbId,
@@ -171,6 +173,7 @@ export default function MovieScreen() {
 
   const toggleWatchlist = useCallback(async () => {
     if (!validTmdbId) return;
+    haptic.light();
     try {
       if (inWatchlist) {
         await removeFromWatchlist(tmdbId, 'movie');
@@ -192,6 +195,7 @@ export default function MovieScreen() {
 
   const openActions = useCallback(() => {
     if (!validTmdbId || !heroTitle) return;
+    haptic.medium();
     const actions: ActionItem[] = [];
     if (entry) {
       actions.push({
@@ -297,9 +301,7 @@ export default function MovieScreen() {
               scrollY={scrollY}
             />
           ) : (
-            <View style={styles.heroSkeleton}>
-              <ActivityIndicator color={t.colors.text.muted} />
-            </View>
+            <BackdropPosterHeaderSkeleton />
           )}
 
           {entry ? <YourLogSection entry={entry} /> : null}
@@ -463,21 +465,10 @@ function SkeletonBlocks() {
   const t = useTheme();
   return (
     <View style={{ marginTop: t.spacing.xxxl, paddingHorizontal: t.spacing.lg }}>
-      <View
-        style={{
-          height: SKELETON_BLOCK_HEIGHT,
-          backgroundColor: t.colors.bg.elevated,
-          borderRadius: t.radii.md,
-        }}
-      />
-      <View
-        style={{
-          marginTop: t.spacing.md,
-          height: SKELETON_BLOCK_HEIGHT,
-          backgroundColor: t.colors.bg.elevated,
-          borderRadius: t.radii.md,
-        }}
-      />
+      <Skeleton height={SKELETON_BLOCK_HEIGHT} />
+      <View style={{ marginTop: t.spacing.md }}>
+        <Skeleton height={SKELETON_BLOCK_HEIGHT} />
+      </View>
     </View>
   );
 }
@@ -508,12 +499,6 @@ function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroSkeleton: {
-    width: '100%',
-    aspectRatio: 16 / 9,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -145,6 +145,35 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 The root `KeyboardProvider` is already in `app/_layout.tsx` — don't move it.
 
+### 7. Loading states are content-shaped skeletons, not spinners
+
+Every load site — anywhere we render conditionally on a fetched value being null/undefined — must render a **Skeleton placeholder whose geometry matches the eventual content** so the layout doesn't shift when data arrives. `ActivityIndicator` is reserved for two specific cases:
+
+- **In-place feedback inside a fixed surface** that's not itself a load placeholder (Button loading state, genre-picker chip spinner).
+- **Bottom-of-list pagination** when more items are appending to an already-visible list.
+
+Everywhere else (full-screen loads, list/grid initial loads, hero placeholders, sectional placeholders) build the load state out of `Skeleton`, `SkeletonText`, `SkeletonPoster`:
+
+```tsx
+import { Skeleton, SkeletonText, SkeletonPoster } from '@/components';
+
+// Plain rectangle (use only when no semantic helper fits)
+<Skeleton width="100%" height={96} borderRadius={t.radii.md} />
+
+// Text line shaped by typography variant — height = lineHeight of that variant
+<SkeletonText variant="bodyStrong" width="70%" />
+<SkeletonText variant="caption" width="35%" />
+
+// Poster shaped to PosterImage's sm/md/lg dimensions exactly
+<SkeletonPoster size="lg" />
+```
+
+Match the **content's containers** too — same padding, gap, borderRadius, background. If a row uses `bg.surface` + `padding: md` + `borderRadius: md`, the skeleton row uses the same. If a chart paddings the section with `paddingHorizontal: lg`, the skeleton does the same. Goal: when the data arrives, **nothing moves**.
+
+When a component has a stable, content-shaped loading variant that more than one screen renders, colocate the skeleton next to the component as a named export (e.g. `BackdropPosterHeaderSkeleton`, `MoviePosterRowSkeleton`). One-off shapes (e.g. a season's episode list) live inline in the screen file.
+
+Quantity: render enough placeholder items to fill the viewport during load — typically **6–8 vertical rows**, **2–3 grid rows × 2 cols**, **6 horizontal carousel items**.
+
 ---
 
 ## Recipes
