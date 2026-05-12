@@ -18,7 +18,28 @@ export function WatchlistRow({ item }: { item: WatchlistItem }) {
         },
       ]}
     >
-      <PosterImage posterPath={item.posterPath} size="sm" />
+      <View>
+        <PosterImage posterPath={item.posterPath} size="sm" />
+        {item.mediaType === 'tv' ? (
+          <View
+            style={[
+              styles.tvChip,
+              {
+                top: t.spacing.xs,
+                left: t.spacing.xs,
+                backgroundColor: t.colors.bg.elevated,
+                borderRadius: t.radii.sm,
+                paddingHorizontal: t.spacing.xs,
+                paddingVertical: t.spacing.xxs,
+              },
+            ]}
+          >
+            <Text variant="caption" tone="primary" style={{ letterSpacing: t.tracking.badge }}>
+              TV
+            </Text>
+          </View>
+        ) : null}
+      </View>
       <View style={[styles.content, { marginLeft: t.spacing.md }]}>
         <View style={styles.titleRow}>
           <Text variant="titleMd" numberOfLines={1} style={styles.flex1}>
@@ -40,4 +61,5 @@ const styles = StyleSheet.create({
   content: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline' },
   flex1: { flex: 1 },
+  tvChip: { position: 'absolute' },
 });

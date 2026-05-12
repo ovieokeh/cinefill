@@ -10,14 +10,14 @@ import { useRouter } from 'expo-router';
 
 import { Screen, Text, Input, PosterImage } from '@/components';
 import { useTheme } from '@/theme';
-import { searchMovies, type TmdbMovie } from '@/lib/tmdb';
+import { searchMulti, type MultiSearchResult } from '@/lib/tmdb';
 
 export default function SearchScreen() {
   const t = useTheme();
   const router = useRouter();
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<TmdbMovie[]>([]);
+  const [results, setResults] = useState<MultiSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -39,7 +39,7 @@ export default function SearchScreen() {
       setSearching(true);
       setSearchError(null);
       try {
-        const r = await searchMovies(q, controller.signal);
+        const r = await searchMulti(q, controller.signal);
         if (!controller.signal.aborted) setResults(r);
       } catch (e: unknown) {
         if (controller.signal.aborted) return;
@@ -56,23 +56,35 @@ export default function SearchScreen() {
     };
   }, [query]);
 
-  function pickFilm(film: TmdbMovie) {
-    router.replace({
-      pathname: '/movie/[tmdbId]',
-      params: {
-        tmdbId: String(film.tmdbId),
-        title: film.title,
-        year: film.year ?? '',
-        posterPath: film.posterPath ?? '',
-      },
-    });
+  function pick(item: MultiSearchResult) {
+    if (item.mediaType === 'movie') {
+      router.replace({
+        pathname: '/movie/[tmdbId]',
+        params: {
+          tmdbId: String(item.tmdbId),
+          title: item.title,
+          year: item.year ?? '',
+          posterPath: item.posterPath ?? '',
+        },
+      });
+    } else {
+      router.replace({
+        pathname: '/tv/[id]',
+        params: {
+          id: String(item.tmdbId),
+          title: item.title,
+          year: item.year ?? '',
+          posterPath: item.posterPath ?? '',
+        },
+      });
+    }
   }
 
   return (
     <Screen padded={false}>
       <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
         <Input
-          label="Find a film"
+          label="Find a film or show"
           placeholder="Search by title…"
           value={query}
           onChangeText={setQuery}
@@ -94,7 +106,7 @@ export default function SearchScreen() {
       ) : (
         <FlatList
           data={results}
-          keyExtractor={(m) => String(m.tmdbId)}
+          keyExtractor={(m) => `${m.mediaType}-${m.tmdbId}`}
           contentContainerStyle={{
             paddingHorizontal: t.spacing.lg,
             paddingTop: t.spacing.md,
@@ -104,7 +116,7 @@ export default function SearchScreen() {
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => pickFilm(item)}
+              onPress={() => pick(item)}
               style={({ pressed }) => [
                 styles.resultRow,
                 {
@@ -114,7 +126,28 @@ export default function SearchScreen() {
                 },
               ]}
             >
-              <PosterImage posterPath={item.posterPath} size="sm" />
+              <View>
+                <PosterImage posterPath={item.posterPath} size="sm" />
+                {item.mediaType === 'tv' ? (
+                  <View
+                    style={[
+                      styles.tvChip,
+                      {
+                        top: t.spacing.xs,
+                        left: t.spacing.xs,
+                        backgroundColor: t.colors.bg.elevated,
+                        borderRadius: t.radii.sm,
+                        paddingHorizontal: t.spacing.xs,
+                        paddingVertical: t.spacing.xxs,
+                      },
+                    ]}
+                  >
+                    <Text variant="caption" tone="primary" style={{ letterSpacing: t.tracking.badge }}>
+                      TV
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <View style={[styles.resultBody, { marginLeft: t.spacing.md }]}>
                 <Text variant="bodyStrong" numberOfLines={2}>
                   {item.title}
@@ -148,4 +181,5 @@ const styles = StyleSheet.create({
   centered: { alignItems: 'center', justifyContent: 'center' },
   resultRow: { flexDirection: 'row', alignItems: 'center' },
   resultBody: { flex: 1, minWidth: 0 },
+  tvChip: { position: 'absolute' },
 });

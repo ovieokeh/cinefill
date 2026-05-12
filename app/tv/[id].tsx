@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
   ActivityIndicator,
   Pressable,
-  Alert,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -14,60 +13,45 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { format, parseISO } from 'date-fns';
 
 import {
   Screen,
   Text,
   Button,
-  StarRating,
   BackdropPosterHeader,
   CastCarousel,
   TrailerCard,
   WatchProviders,
   CrewAndGenresSection,
   MoviePosterRow,
-  ActionSheet,
-  type ActionSheetHandle,
-  type ActionItem,
 } from '@/components';
 import { useTheme } from '@/theme';
-import {
-  getEntryByTmdbId,
-  deleteEntry,
-  type DiaryEntry,
-} from '@/db/diary';
-import {
-  addToWatchlist,
-  removeFromWatchlist,
-  isInWatchlist,
-} from '@/db/watchlist';
-import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
+import { getTvDetails, type TvDetails } from '@/lib/tmdb';
+import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 
 const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
 const FAB_SIZE = 56;
 const FAB_ICON_SIZE = 26;
 
-export default function MovieScreen() {
+export default function TvScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { tmdbId: rawTmdbId, title, year, posterPath } = useLocalSearchParams<{
-    tmdbId: string;
+  const { id, title, year, posterPath } = useLocalSearchParams<{
+    id: string;
     title?: string;
     year?: string;
     posterPath?: string;
   }>();
-  const tmdbId = Number(rawTmdbId);
-  const validTmdbId = Number.isFinite(tmdbId);
+  const tvId = Number(id);
+  const validId = Number.isFinite(tvId);
 
   const seedTitle = title ?? null;
   const seedYear = year ?? null;
   const seedPosterPath = posterPath && posterPath.length > 0 ? posterPath : null;
 
-  const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [inWatchlist, setInWatchlist] = useState(false);
-  const [details, setDetails] = useState<MovieDetails | null>(null);
+  const [details, setDetails] = useState<TvDetails | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [showNavTitle, setShowNavTitle] = useState(false);
@@ -91,34 +75,30 @@ export default function MovieScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      if (!validTmdbId) return;
+      if (!validId) return;
       (async () => {
-        const [row, watch] = await Promise.all([
-          getEntryByTmdbId(tmdbId),
-          isInWatchlist(tmdbId, 'movie'),
-        ]);
+        const watch = await isInWatchlist(tvId, 'tv');
         if (cancelled) return;
-        setEntry(row);
         setInWatchlist(watch);
       })();
       return () => {
         cancelled = true;
       };
-    }, [tmdbId, validTmdbId]),
+    }, [tvId, validId]),
   );
 
   useEffect(() => {
-    if (!validTmdbId) return;
+    if (!validId) return;
     const controller = new AbortController();
     setLoadingDetails(true);
     setDetailsError(null);
     (async () => {
       try {
-        const d = await getMovieDetails(tmdbId, controller.signal);
+        const d = await getTvDetails(tvId, controller.signal);
         if (!controller.signal.aborted) setDetails(d);
       } catch (e: unknown) {
         if (controller.signal.aborted) return;
-        setDetailsError(e instanceof Error ? e.message : 'Failed to load film details');
+        setDetailsError(e instanceof Error ? e.message : 'Failed to load show details');
       } finally {
         if (!controller.signal.aborted) setLoadingDetails(false);
       }
@@ -126,48 +106,24 @@ export default function MovieScreen() {
     return () => {
       controller.abort();
     };
-  }, [tmdbId, validTmdbId, retryKey]);
+  }, [tvId, validId, retryKey]);
 
-  const heroTitle = details?.title ?? entry?.title ?? seedTitle ?? '';
-  const heroYear = entry?.year ?? seedYear;
-  const heroPosterPath = details?.posterPath ?? entry?.posterPath ?? seedPosterPath;
+  const heroTitle = details?.name ?? seedTitle ?? '';
+  const heroYear = details?.yearRange ?? seedYear;
+  const heroPosterPath = details?.posterPath ?? seedPosterPath;
 
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';
 
-  const actionSheetRef = useRef<ActionSheetHandle>(null);
-
-  const doDelete = useCallback(async () => {
-    if (!entry) return;
-    try {
-      await deleteEntry(entry.id);
-      setEntry(null);
-    } catch (e) {
-      console.error('Failed to delete entry', e);
-    }
-  }, [entry]);
-
-  const confirmDelete = useCallback(() => {
-    Alert.alert(
-      'Delete log?',
-      'This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
-      ],
-      { cancelable: true },
-    );
-  }, [doDelete]);
-
   const toggleWatchlist = useCallback(async () => {
-    if (!validTmdbId) return;
+    if (!validId || !heroTitle) return;
     try {
       if (inWatchlist) {
-        await removeFromWatchlist(tmdbId, 'movie');
+        await removeFromWatchlist(tvId, 'tv');
         setInWatchlist(false);
       } else {
         await addToWatchlist({
-          tmdbId,
-          mediaType: 'movie',
+          tmdbId: tvId,
+          mediaType: 'tv',
           title: heroTitle,
           year: heroYear,
           posterPath: heroPosterPath,
@@ -177,72 +133,15 @@ export default function MovieScreen() {
     } catch (e) {
       console.error('Failed to toggle watchlist', e);
     }
-  }, [tmdbId, validTmdbId, inWatchlist, heroTitle, heroYear, heroPosterPath]);
+  }, [tvId, validId, inWatchlist, heroTitle, heroYear, heroPosterPath]);
 
-  const openActions = useCallback(() => {
-    if (!validTmdbId || !heroTitle) return;
-    const actions: ActionItem[] = [];
-    if (entry) {
-      actions.push({
-        label: 'Edit log',
-        icon: 'pencil',
-        onPress: () => router.push(`/edit-entry/${entry.id}`),
-      });
-      actions.push({
-        label: 'Delete log',
-        icon: 'trash-outline',
-        destructive: true,
-        onPress: confirmDelete,
-      });
-    } else {
-      actions.push({
-        label: 'Log a watch',
-        icon: 'eye-outline',
-        onPress: () =>
-          router.push({
-            pathname: '/new-entry',
-            params: {
-              tmdbId: String(tmdbId),
-              title: heroTitle,
-              year: heroYear ?? '',
-              posterPath: heroPosterPath ?? '',
-            },
-          }),
-      });
-    }
-    actions.push({
-      label: inWatchlist ? 'Remove from watchlist' : 'Add to watchlist',
-      icon: inWatchlist ? 'bookmark' : 'bookmark-outline',
-      onPress: toggleWatchlist,
-    });
-    actionSheetRef.current?.present(actions);
-  }, [
-    validTmdbId,
-    heroTitle,
-    entry,
-    inWatchlist,
-    router,
-    tmdbId,
-    heroYear,
-    heroPosterPath,
-    confirmDelete,
-    toggleWatchlist,
-  ]);
-
-  if (!validTmdbId) {
+  if (!validId) {
     return (
       <>
         <Stack.Screen options={{ title: '' }} />
         <Screen>
           <View style={styles.centered}>
-            <Text variant="titleLg">Film not found</Text>
-            <Text
-              variant="body"
-              tone="muted"
-              style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
-            >
-              The film reference is invalid.
-            </Text>
+            <Text variant="titleLg">Show not found</Text>
             <Button
               title="Go back"
               variant="ghost"
@@ -255,14 +154,22 @@ export default function MovieScreen() {
     );
   }
 
-  const fabIcon: keyof typeof Ionicons.glyphMap = entry
-    ? 'eye'
-    : inWatchlist
-      ? 'bookmark'
-      : 'add';
-
   const overview = details?.overview ?? '';
   const tagline = details?.tagline ?? '';
+
+  const statusLine = (() => {
+    if (!details) return null;
+    const parts: string[] = [];
+    if (details.numberOfSeasons) {
+      parts.push(
+        details.numberOfSeasons === 1
+          ? '1 season'
+          : `${details.numberOfSeasons} seasons`,
+      );
+    }
+    if (details.status) parts.push(details.status);
+    return parts.length > 0 ? parts.join('  ·  ') : null;
+  })();
 
   return (
     <>
@@ -279,9 +186,9 @@ export default function MovieScreen() {
               posterPath={heroPosterPath}
               title={heroTitle}
               year={heroYear}
-              runtime={details?.runtime ?? null}
+              runtime={details?.episodeRuntime ?? null}
               genres={details?.genres ?? []}
-              byline={details?.director ? `Directed by ${details.director}` : null}
+              byline={details?.creators ? `Created by ${details.creators}` : null}
               certification={details?.certification ?? null}
               scrollY={scrollY}
             />
@@ -291,7 +198,15 @@ export default function MovieScreen() {
             </View>
           )}
 
-          {entry ? <YourLogSection entry={entry} /> : null}
+          {statusLine ? (
+            <Text
+              variant="caption"
+              tone="muted"
+              style={{ paddingHorizontal: t.spacing.lg, marginTop: t.spacing.lg }}
+            >
+              {statusLine}
+            </Text>
+          ) : null}
 
           {loadingDetails && !details ? (
             <SkeletonBlocks />
@@ -352,7 +267,7 @@ export default function MovieScreen() {
 
               {details.recommendations.length > 0 ? (
                 <>
-                  <SectionTitle title="Similar movies" />
+                  <SectionTitle title="Similar shows" />
                   <MoviePosterRow items={details.recommendations} />
                 </>
               ) : null}
@@ -362,8 +277,8 @@ export default function MovieScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Film actions"
-          onPress={openActions}
+          accessibilityLabel={inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+          onPress={toggleWatchlist}
           style={({ pressed }) => [
             styles.fab,
             {
@@ -377,10 +292,13 @@ export default function MovieScreen() {
             },
           ]}
         >
-          <Ionicons name={fabIcon} size={FAB_ICON_SIZE} color={t.colors.accent.on} />
+          <Ionicons
+            name={inWatchlist ? 'bookmark' : 'bookmark-outline'}
+            size={FAB_ICON_SIZE}
+            color={t.colors.accent.on}
+          />
         </Pressable>
       </Screen>
-      <ActionSheet ref={actionSheetRef} />
     </>
   );
 }
@@ -401,50 +319,6 @@ function SectionTitle({ title }: { title: string }) {
     >
       {title}
     </Text>
-  );
-}
-
-function YourLogSection({ entry }: { entry: DiaryEntry }) {
-  const t = useTheme();
-  const watched = parseISO(entry.watchedDate);
-  return (
-    <View
-      style={{
-        marginTop: t.spacing.xxxl,
-        paddingHorizontal: t.spacing.lg,
-      }}
-    >
-      <Text
-        variant="label"
-        tone="muted"
-        style={{
-          marginBottom: t.spacing.md,
-          textTransform: 'uppercase',
-          letterSpacing: t.tracking.label,
-        }}
-      >
-        Your log
-      </Text>
-      {entry.rating > 0 ? (
-        <StarRating value={entry.rating} size={32} readOnly />
-      ) : (
-        <Text variant="bodyStrong" tone="muted">
-          Unrated
-        </Text>
-      )}
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.sm }}>
-        {format(watched, 'EEEE, MMMM d, yyyy')}
-      </Text>
-      {entry.note ? (
-        <Text variant="body" style={{ marginTop: t.spacing.md }}>
-          {entry.note}
-        </Text>
-      ) : (
-        <Text variant="body" tone="muted" style={{ marginTop: t.spacing.md }}>
-          No note.
-        </Text>
-      )}
-    </View>
   );
 }
 
@@ -485,7 +359,7 @@ function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void
         backgroundColor: t.colors.bg.surface,
       }}
     >
-      <Text variant="bodyStrong">Couldn&apos;t load film details</Text>
+      <Text variant="bodyStrong">Couldn&apos;t load show details</Text>
       <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
         {message}
       </Text>

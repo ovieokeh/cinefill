@@ -46,6 +46,10 @@ export default function RootLayout() {
                 options={{ title: '', headerBackTitle: 'Back' }}
               />
               <Stack.Screen
+                name="tv/[id]"
+                options={{ title: '', headerBackTitle: 'Back' }}
+              />
+              <Stack.Screen
                 name="person/[id]"
                 options={{ title: '', headerBackTitle: 'Back' }}
               />

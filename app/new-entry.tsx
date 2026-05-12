@@ -69,8 +69,8 @@ export default function NewEntryScreen() {
         rating,
         note: note.trim(),
       });
-      if (await isInWatchlist(film.tmdbId)) {
-        await removeFromWatchlist(film.tmdbId);
+      if (await isInWatchlist(film.tmdbId, 'movie')) {
+        await removeFromWatchlist(film.tmdbId, 'movie');
       }
       router.back();
     } catch (e) {

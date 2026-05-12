@@ -18,7 +18,8 @@ type Props = {
   year: string | null;
   runtime: number | null;
   genres: string[];
-  director: string | null;
+  /** Free-form attribution line, e.g. "Directed by …" or "Created by …" */
+  byline: string | null;
   certification: string | null;
   scrollY?: SharedValue<number>;
 };
@@ -39,7 +40,7 @@ export function BackdropPosterHeader({
   year,
   runtime,
   genres,
-  director,
+  byline,
   certification,
   scrollY,
 }: Props) {
@@ -107,9 +108,9 @@ export function BackdropPosterHeader({
               {genres.join(', ')}
             </Text>
           ) : null}
-          {director ? (
+          {byline ? (
             <Text variant="caption" tone="secondary" style={{ marginTop: t.spacing.xs }}>
-              Directed by {director}
+              {byline}
             </Text>
           ) : null}
         </View>

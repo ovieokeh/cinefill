@@ -254,6 +254,197 @@ function normalizePersonCredits(raw: RawPersonDetails['combined_credits']): Pers
   return out;
 }
 
+export type TvDetails = {
+  tmdbId: number;
+  name: string;
+  tagline: string;
+  overview: string;
+  episodeRuntime: number | null;
+  yearRange: string | null;
+  genres: string[];
+  backdropPath: string | null;
+  posterPath: string | null;
+  creators: string | null;
+  certification: string | null;
+  status: string;
+  numberOfSeasons: number | null;
+  cast: { id: number; name: string; character: string; profilePath: string | null }[];
+  keyCrew: { role: string; members: { id: number; name: string }[] }[];
+  trailerYoutubeKey: string | null;
+  flatrateProviders: { id: number; name: string; logoPath: string | null }[];
+  recommendations: { tmdbId: number; mediaType: 'tv'; title: string; year: string | null; posterPath: string | null }[];
+};
+
+type RawAggregateCast = {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  order: number;
+  roles: { character: string; episode_count: number }[];
+};
+
+type RawAggregateCrew = {
+  id: number;
+  name: string;
+  department: string;
+  profile_path: string | null;
+  jobs: { job: string; episode_count: number }[];
+};
+
+type RawTvContentRatings = {
+  results: { iso_3166_1: string; rating: string }[];
+};
+
+type RawTvRecommendation = {
+  id: number;
+  name: string;
+  first_air_date?: string;
+  poster_path: string | null;
+};
+
+type RawTvDetails = {
+  id: number;
+  name: string;
+  tagline: string;
+  overview: string;
+  episode_run_time: number[];
+  first_air_date: string | null;
+  last_air_date: string | null;
+  status: string;
+  number_of_seasons: number | null;
+  genres: { id: number; name: string }[];
+  backdrop_path: string | null;
+  poster_path: string | null;
+  created_by: { id: number; name: string }[];
+  aggregate_credits?: { cast: RawAggregateCast[]; crew: RawAggregateCrew[] };
+  videos?: { results: RawVideo[] };
+  content_ratings?: RawTvContentRatings;
+  'watch/providers'?: {
+    results: Record<string, { flatrate?: RawProvider[]; link?: string }>;
+  };
+  recommendations?: { results: RawTvRecommendation[] };
+};
+
+function pickTvYearRange(first: string | null, last: string | null, status: string): string | null {
+  const fy = first && first.length >= 4 ? first.slice(0, 4) : null;
+  const ly = last && last.length >= 4 ? last.slice(0, 4) : null;
+  if (!fy) return null;
+  const stillRunning =
+    status === 'Returning Series' || status === 'In Production' || status === 'Planned';
+  if (stillRunning && (!ly || ly === fy)) return `${fy}–`;
+  if (!ly || ly === fy) return fy;
+  return `${fy}–${ly}`;
+}
+
+function pickTvUsCertification(cr: RawTvContentRatings | undefined): string | null {
+  if (!cr?.results) return null;
+  const us = cr.results.find((r) => r.iso_3166_1 === 'US');
+  return us && us.rating.trim() !== '' ? us.rating : null;
+}
+
+function pickTvKeyCrew(
+  createdBy: RawTvDetails['created_by'],
+  crew: RawAggregateCrew[] | undefined,
+): TvDetails['keyCrew'] {
+  const out: TvDetails['keyCrew'] = [];
+  if (createdBy && createdBy.length > 0) {
+    const seen = new Set<number>();
+    const members: { id: number; name: string }[] = [];
+    for (const c of createdBy) {
+      if (!seen.has(c.id)) {
+        members.push({ id: c.id, name: c.name });
+        seen.add(c.id);
+      }
+    }
+    if (members.length > 0) out.push({ role: 'Created by', members });
+  }
+  if (crew) {
+    const composerSeen = new Set<number>();
+    const composers: { id: number; name: string }[] = [];
+    for (const c of crew) {
+      const hasMusicJob = c.jobs.some((j) => j.job === 'Original Music Composer');
+      if (hasMusicJob && !composerSeen.has(c.id)) {
+        composers.push({ id: c.id, name: c.name });
+        composerSeen.add(c.id);
+      }
+    }
+    if (composers.length > 0) out.push({ role: 'Music', members: composers });
+  }
+  return out;
+}
+
+function pickTvCast(cast: RawAggregateCast[] | undefined): TvDetails['cast'] {
+  if (!cast) return [];
+  return [...cast]
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 10)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      character: c.roles[0]?.character ?? '',
+      profilePath: c.profile_path,
+    }));
+}
+
+function pickTvRecommendations(
+  recs: RawTvDetails['recommendations'],
+): TvDetails['recommendations'] {
+  if (!recs?.results) return [];
+  return recs.results.slice(0, 20).map((r) => ({
+    tmdbId: r.id,
+    mediaType: 'tv' as const,
+    title: r.name,
+    year: r.first_air_date && r.first_air_date.length >= 4 ? r.first_air_date.slice(0, 4) : null,
+    posterPath: r.poster_path,
+  }));
+}
+
+export async function getTvDetails(tvId: number, signal?: AbortSignal): Promise<TvDetails> {
+  assertTmdbConfigured();
+  const url = `${TMDB_BASE}/tv/${tvId}?append_to_response=aggregate_credits,videos,watch/providers,content_ratings,recommendations&language=en-US`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`TMDB tv failed: ${res.status} ${res.statusText}`);
+  }
+
+  const raw = (await res.json()) as RawTvDetails;
+  const creators =
+    raw.created_by && raw.created_by.length > 0
+      ? raw.created_by
+          .map((c) => c.name)
+          .slice(0, 2)
+          .join(' & ')
+      : null;
+
+  return {
+    tmdbId: raw.id,
+    name: raw.name,
+    tagline: raw.tagline ?? '',
+    overview: raw.overview ?? '',
+    episodeRuntime: raw.episode_run_time && raw.episode_run_time.length > 0 ? raw.episode_run_time[0] : null,
+    yearRange: pickTvYearRange(raw.first_air_date, raw.last_air_date, raw.status),
+    genres: (raw.genres ?? []).map((g) => g.name),
+    backdropPath: raw.backdrop_path,
+    posterPath: raw.poster_path,
+    creators,
+    certification: pickTvUsCertification(raw.content_ratings),
+    status: raw.status,
+    numberOfSeasons: raw.number_of_seasons,
+    cast: pickTvCast(raw.aggregate_credits?.cast),
+    keyCrew: pickTvKeyCrew(raw.created_by, raw.aggregate_credits?.crew),
+    trailerYoutubeKey: pickTrailer(raw.videos?.results),
+    flatrateProviders: pickUsFlatrate(raw['watch/providers']),
+    recommendations: pickTvRecommendations(raw.recommendations),
+  };
+}
+
 export async function getPersonDetails(
   personId: number,
   signal?: AbortSignal,
@@ -285,6 +476,64 @@ export async function getPersonDetails(
     knownForDepartment: raw.known_for_department ?? '',
     credits: normalizePersonCredits(raw.combined_credits),
   };
+}
+
+export type MultiSearchResult = {
+  tmdbId: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  year: string | null;
+  posterPath: string | null;
+};
+
+type RawMultiResult = {
+  id: number;
+  media_type?: 'movie' | 'tv' | 'person' | string;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path: string | null;
+};
+
+type TmdbMultiResponse = {
+  results: RawMultiResult[];
+};
+
+export async function searchMulti(query: string, signal?: AbortSignal): Promise<MultiSearchResult[]> {
+  assertTmdbConfigured();
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const url = `${TMDB_BASE}/search/multi?query=${encodeURIComponent(trimmed)}&include_adult=false&language=en-US&page=1`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`TMDB search failed: ${res.status} ${res.statusText}`);
+  }
+
+  const json = (await res.json()) as TmdbMultiResponse;
+  const out: MultiSearchResult[] = [];
+  for (const r of json.results) {
+    if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
+    const mt = r.media_type;
+    const title = mt === 'movie' ? r.title ?? '' : r.name ?? '';
+    const date = mt === 'movie' ? r.release_date : r.first_air_date;
+    out.push({
+      tmdbId: r.id,
+      mediaType: mt,
+      title,
+      year: date && date.length >= 4 ? date.slice(0, 4) : null,
+      posterPath: r.poster_path,
+    });
+  }
+  return out;
 }
 
 export async function searchMovies(query: string, signal?: AbortSignal): Promise<TmdbMovie[]> {

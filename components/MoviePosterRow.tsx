@@ -72,21 +72,33 @@ function Item({ item }: { item: MoviePosterItem }) {
     </View>
   );
 
-  if (item.mediaType !== 'movie') return body;
+  const onPress = () => {
+    if (item.mediaType === 'movie') {
+      router.push({
+        pathname: '/movie/[tmdbId]',
+        params: {
+          tmdbId: String(item.tmdbId),
+          title: item.title,
+          year: item.year ?? '',
+          posterPath: item.posterPath ?? '',
+        },
+      });
+    } else {
+      router.push({
+        pathname: '/tv/[id]',
+        params: {
+          id: String(item.tmdbId),
+          title: item.title,
+          year: item.year ?? '',
+          posterPath: item.posterPath ?? '',
+        },
+      });
+    }
+  };
 
   return (
     <Pressable
-      onPress={() =>
-        router.push({
-          pathname: '/movie/[tmdbId]',
-          params: {
-            tmdbId: String(item.tmdbId),
-            title: item.title,
-            year: item.year ?? '',
-            posterPath: item.posterPath ?? '',
-          },
-        })
-      }
+      onPress={onPress}
       style={({ pressed }) => ({ opacity: pressed ? t.opacity.pressed : 1 })}
     >
       {body}

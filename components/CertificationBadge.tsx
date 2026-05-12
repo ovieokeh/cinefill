@@ -8,10 +8,15 @@ type Props = {
 
 function bgColorFor(certification: string, colors: Tokens['colors']): string {
   const c = certification.toUpperCase().trim();
+  // Movies (MPAA + common international)
   if (c === 'G' || c === 'PG' || c === 'U') return colors.rating.mild;
   if (c === 'PG-13' || c === '12' || c === '12A') return colors.rating.cautionary;
   if (c === 'R' || c === '15' || c === 'MA15+') return colors.rating.restricted;
   if (c === 'NC-17' || c === '18' || c === 'X' || c === 'R18+') return colors.rating.adult;
+  // US TV (FCC)
+  if (c === 'TV-Y' || c === 'TV-Y7' || c === 'TV-G' || c === 'TV-PG') return colors.rating.mild;
+  if (c === 'TV-14') return colors.rating.cautionary;
+  if (c === 'TV-MA') return colors.rating.restricted;
   return colors.rating.unknown;
 }
 
