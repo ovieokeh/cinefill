@@ -37,10 +37,12 @@ import {
   unmarkStandout,
 } from '@/db/standouts';
 import { haptic } from '@/lib/haptics';
+import { useFilmContext } from '@/lib/film-context';
 
 export default function SeasonDetailScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { refresh } = useFilmContext();
   const { id, n, showTitle, showPosterPath, showYear } = useLocalSearchParams<{
     id: string;
     n: string;
@@ -135,6 +137,7 @@ export default function SeasonDetailScreen() {
             try {
               await deleteEntry(entry.id);
               setEntry(null);
+              await refresh();
             } catch (e) {
               console.error('Failed to delete entry', e);
             }
@@ -143,7 +146,7 @@ export default function SeasonDetailScreen() {
       ],
       { cancelable: true },
     );
-  }, [entry]);
+  }, [entry, refresh]);
 
   const openActions = useCallback(() => {
     if (!entry) return;

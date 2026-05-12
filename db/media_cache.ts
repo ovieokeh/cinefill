@@ -12,7 +12,9 @@ export type MediaCacheRow = {
   genreIds: number[];
   runtime: number | null;
   director: string | null;
+  directorIds: number[];
   seasons: CachedSeason[];
+  popularity: number | null;
   fetchedAt: number;
 };
 
@@ -37,6 +39,12 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
     if (!cols.some((c) => c.name === 'seasons_json')) {
       await db.execAsync(`ALTER TABLE media_cache ADD COLUMN seasons_json TEXT`);
     }
+    if (!cols.some((c) => c.name === 'popularity')) {
+      await db.execAsync(`ALTER TABLE media_cache ADD COLUMN popularity REAL`);
+    }
+    if (!cols.some((c) => c.name === 'director_ids')) {
+      await db.execAsync(`ALTER TABLE media_cache ADD COLUMN director_ids TEXT`);
+    }
   });
 }
 
@@ -46,9 +54,22 @@ type Row = {
   genre_ids: string;
   runtime: number | null;
   director: string | null;
+  director_ids: string | null;
   seasons_json: string | null;
+  popularity: number | null;
   fetched_at: number;
 };
+
+function parseNumberArray(json: string | null): number[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((n): n is number => typeof n === 'number');
+  } catch {
+    return [];
+  }
+}
 
 function parseSeasons(json: string | null): CachedSeason[] {
   if (!json) return [];
@@ -85,7 +106,9 @@ function rowToCache(row: Row): MediaCacheRow {
     genreIds: ids,
     runtime: row.runtime,
     director: row.director,
+    directorIds: parseNumberArray(row.director_ids),
     seasons: parseSeasons(row.seasons_json),
+    popularity: row.popularity,
     fetchedAt: row.fetched_at,
   };
 }
@@ -94,21 +117,23 @@ export async function upsertMediaCache(item: NewMediaCacheRow): Promise<MediaCac
   const db = await getDb();
   const fetchedAt = Date.now();
   await db.runAsync(
-    `INSERT OR REPLACE INTO media_cache (tmdb_id, media_type, genre_ids, runtime, director, seasons_json, fetched_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO media_cache (tmdb_id, media_type, genre_ids, runtime, director, director_ids, seasons_json, popularity, fetched_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     item.tmdbId,
     item.mediaType,
     JSON.stringify(item.genreIds ?? []),
     item.runtime,
     item.director,
+    JSON.stringify(item.directorIds ?? []),
     JSON.stringify(item.seasons ?? []),
+    item.popularity,
     fetchedAt,
   );
   return { ...item, fetchedAt };
 }
 
 const SELECT_COLS =
-  'tmdb_id, media_type, genre_ids, runtime, director, seasons_json, fetched_at';
+  'tmdb_id, media_type, genre_ids, runtime, director, director_ids, seasons_json, popularity, fetched_at';
 
 export async function getMediaCache(
   tmdbId: number,

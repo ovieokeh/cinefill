@@ -30,6 +30,7 @@ import {
 } from '@/db/diary';
 import { addToWatchlistBatch, type NewWatchlistItem } from '@/db/watchlist';
 import { haptic } from '@/lib/haptics';
+import { useFilmContext } from '@/lib/film-context';
 
 const CONCURRENCY = 6;
 const UNMATCHED_PREVIEW_LIMIT = 5;
@@ -71,6 +72,7 @@ type Phase =
 export default function ImportLetterboxdScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { refresh } = useFilmContext();
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const matchAbortRef = useRef<AbortController | null>(null);
 
@@ -205,6 +207,7 @@ export default function ImportLetterboxdScreen() {
       );
       await addEntries(newDiary);
       await addToWatchlistBatch(watchlistInserts);
+      await refresh();
       haptic.success();
       setPhase({
         kind: 'done',

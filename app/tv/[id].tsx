@@ -34,6 +34,7 @@ import {
   Skeleton,
 } from '@/components';
 import { haptic } from '@/lib/haptics';
+import { useFilmContext } from '@/lib/film-context';
 import { useTheme } from '@/theme';
 import { getTvDetails, type TvDetails, type TvSeasonSummary } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
@@ -53,6 +54,7 @@ const FAB_ICON_SIZE = 26;
 export default function TvScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { refresh } = useFilmContext();
   const { id, title, year, posterPath } = useLocalSearchParams<{
     id: string;
     title?: string;
@@ -133,10 +135,12 @@ export default function TvScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.episodeRuntime,
             director: d.creators,
+            directorIds: d.creatorIds,
             seasons: d.seasons.map((s) => ({
               seasonNumber: s.seasonNumber,
               episodeCount: s.episodeCount,
             })),
+            popularity: d.popularity,
           }).catch((err) => console.warn('media_cache upsert failed', err));
         }
       } catch (e: unknown) {
@@ -176,10 +180,11 @@ export default function TvScreen() {
         });
         setInWatchlist(true);
       }
+      await refresh();
     } catch (e) {
       console.error('Failed to toggle watchlist', e);
     }
-  }, [tvId, validId, inWatchlist, heroTitle, heroYear, heroPosterPath]);
+  }, [tvId, validId, inWatchlist, heroTitle, heroYear, heroPosterPath, refresh]);
 
   const openActions = useCallback(() => {
     if (!validId || !heroTitle) return;

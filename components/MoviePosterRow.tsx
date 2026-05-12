@@ -4,6 +4,7 @@ import { useTheme } from '@/theme';
 import { PosterImage } from './PosterImage';
 import { SkeletonPoster, SkeletonText } from './Skeleton';
 import { Text } from './Text';
+import { FilmBadge } from './FilmBadge';
 
 const ITEM_WIDTH = 96;
 
@@ -61,6 +62,11 @@ function Item({ item }: { item: MoviePosterItem }) {
             </Text>
           </View>
         ) : null}
+        <FilmBadge
+          tmdbId={item.tmdbId}
+          mediaType={item.mediaType}
+          style={[styles.filmBadge, { top: t.spacing.xs, right: t.spacing.xs }]}
+        />
       </View>
       <Text variant="caption" style={{ marginTop: t.spacing.xs }}>
         {item.title}
@@ -140,4 +146,5 @@ export function MoviePosterRowSkeleton({ count = 6 }: { count?: number }) {
 const styles = StyleSheet.create({
   item: { alignItems: 'flex-start' },
   tvChip: { position: 'absolute' },
+  filmBadge: { position: 'absolute' },
 });

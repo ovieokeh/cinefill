@@ -35,6 +35,7 @@ import {
   ErrorBlock,
 } from '@/components';
 import { haptic } from '@/lib/haptics';
+import { useFilmContext } from '@/lib/film-context';
 import { useTheme } from '@/theme';
 import {
   getEntryByTmdbId,
@@ -57,6 +58,7 @@ const FAB_ICON_SIZE = 26;
 export default function MovieScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { refresh } = useFilmContext();
   const { tmdbId: rawTmdbId, title, year, posterPath } = useLocalSearchParams<{
     tmdbId: string;
     title?: string;
@@ -129,7 +131,9 @@ export default function MovieScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.runtime,
             director: d.director,
+            directorIds: d.directorIds,
             seasons: [],
+            popularity: d.popularity,
           }).catch((err) => console.warn('media_cache upsert failed', err));
         }
       } catch (e: unknown) {
@@ -157,10 +161,11 @@ export default function MovieScreen() {
     try {
       await deleteEntry(entry.id);
       setEntry(null);
+      await refresh();
     } catch (e) {
       console.error('Failed to delete entry', e);
     }
-  }, [entry]);
+  }, [entry, refresh]);
 
   const confirmDelete = useCallback(() => {
     Alert.alert(
@@ -191,10 +196,11 @@ export default function MovieScreen() {
         });
         setInWatchlist(true);
       }
+      await refresh();
     } catch (e) {
       console.error('Failed to toggle watchlist', e);
     }
-  }, [tmdbId, validTmdbId, inWatchlist, heroTitle, heroYear, heroPosterPath]);
+  }, [tmdbId, validTmdbId, inWatchlist, heroTitle, heroYear, heroPosterPath, refresh]);
 
   const openActions = useCallback(() => {
     if (!validTmdbId || !heroTitle) return;

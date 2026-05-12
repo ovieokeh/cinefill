@@ -24,6 +24,7 @@ import {
   Skeleton,
   SkeletonPoster,
   SkeletonText,
+  FilmBadge,
 } from '@/components';
 import { useTheme } from '@/theme';
 import {
@@ -60,17 +61,19 @@ export default function SearchTabScreen() {
     mediaType?: string;
     genreId?: string;
     genreName?: string;
+    decade?: string;
   }>();
 
   const [query, setQuery] = useState('');
   const [mediaType, setMediaType] = useState<MediaFilter>('all');
   const [genre, setGenre] = useState<GenreRef | null>(null);
+  const [decade, setDecade] = useState<number | null>(null);
 
   // Apply filters from URL params when they change (e.g., from a genre chip tap).
   const lastAppliedRef = useRef<string>('');
   useEffect(() => {
-    const key = `${params.mediaType ?? ''}|${params.genreId ?? ''}|${params.genreName ?? ''}`;
-    if (key === '||' || key === lastAppliedRef.current) return;
+    const key = `${params.mediaType ?? ''}|${params.genreId ?? ''}|${params.genreName ?? ''}|${params.decade ?? ''}`;
+    if (key === '|||' || key === lastAppliedRef.current) return;
     lastAppliedRef.current = key;
     if (params.mediaType === 'movie' || params.mediaType === 'tv' || params.mediaType === 'person' || params.mediaType === 'all') {
       setMediaType(params.mediaType);
@@ -79,15 +82,24 @@ export default function SearchTabScreen() {
       const gid = Number(params.genreId);
       if (Number.isFinite(gid)) setGenre({ id: gid, name: params.genreName });
     }
-    setQuery('');
-  }, [params.mediaType, params.genreId, params.genreName]);
-
-  // Clear genre when media type can't hold one.
-  useEffect(() => {
-    if (mediaType !== 'movie' && mediaType !== 'tv' && genre) {
-      setGenre(null);
+    if (params.decade) {
+      const d = Number(params.decade);
+      if (Number.isFinite(d)) {
+        setDecade(d);
+        // Era taps default to movies (TV decade is fuzzy across long-running shows).
+        if (!params.mediaType) setMediaType('movie');
+      }
     }
-  }, [mediaType, genre]);
+    setQuery('');
+  }, [params.mediaType, params.genreId, params.genreName, params.decade]);
+
+  // Clear genre/decade when media type can't hold them.
+  useEffect(() => {
+    if (mediaType !== 'movie' && mediaType !== 'tv') {
+      if (genre) setGenre(null);
+      if (decade != null) setDecade(null);
+    }
+  }, [mediaType, genre, decade]);
 
   const trimmedQuery = query.trim();
   const hasQuery = trimmedQuery.length > 0;
@@ -115,12 +127,15 @@ export default function SearchTabScreen() {
           <MediaTypeRow value={mediaType} onChange={setMediaType} />
         </View>
         {mediaType === 'movie' || mediaType === 'tv' ? (
-          <View style={{ marginTop: t.spacing.sm }}>
+          <View style={[styles.chipRow, { marginTop: t.spacing.sm, gap: t.spacing.sm }]}>
             <GenrePickerChip
               mediaType={mediaType}
               value={genre}
               onChange={setGenre}
             />
+            {decade != null ? (
+              <DecadeChip decade={decade} onClear={() => setDecade(null)} />
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -136,8 +151,13 @@ export default function SearchTabScreen() {
         <DiscoveryFeed router={router} />
       ) : mediaType === 'person' ? (
         <PopularPeopleList router={router} />
-      ) : genre ? (
-        <DiscoverGrid mediaType={mediaType} genreId={genre.id} router={router} />
+      ) : genre || decade != null ? (
+        <DiscoverGrid
+          mediaType={mediaType}
+          genreId={genre?.id}
+          decade={decade ?? undefined}
+          router={router}
+        />
       ) : (
         <PopularGrid mediaType={mediaType} router={router} />
       )}
@@ -272,6 +292,47 @@ function GenrePickerChip({
       </View>
       <ActionSheet ref={sheetRef} />
     </>
+  );
+}
+
+function DecadeChip({
+  decade,
+  onClear,
+}: {
+  decade: number;
+  onClear: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <View style={styles.chipRow}>
+      <View
+        style={[
+          styles.chip,
+          {
+            backgroundColor: t.colors.bg.elevated,
+            borderRadius: t.radii.pill,
+            paddingHorizontal: t.spacing.md,
+            paddingVertical: t.spacing.xs,
+          },
+        ]}
+      >
+        <Text variant="caption" tone="secondary">
+          {decade}s
+        </Text>
+      </View>
+      <Pressable
+        onPress={onClear}
+        hitSlop={t.spacing.xs}
+        style={({ pressed }) => ({
+          marginLeft: t.spacing.xs,
+          opacity: pressed ? t.opacity.pressed : 1,
+        })}
+        accessibilityRole="button"
+        accessibilityLabel={`Clear decade filter ${decade}s`}
+      >
+        <Ionicons name="close-circle" size={t.spacing.lg} color={t.colors.text.muted} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -447,6 +508,11 @@ function SearchResultRow({
               </Text>
             </View>
           ) : null}
+          <FilmBadge
+            tmdbId={item.tmdbId}
+            mediaType={item.mediaType}
+            style={[styles.filmBadge, { bottom: t.spacing.xs, left: t.spacing.xs }]}
+          />
         </View>
       )}
       <View style={[styles.resultBody, { marginLeft: t.spacing.md }]}>
@@ -756,10 +822,12 @@ function PopularGrid({
 function DiscoverGrid({
   mediaType,
   genreId,
+  decade,
   router,
 }: {
   mediaType: 'movie' | 'tv';
-  genreId: number;
+  genreId?: number;
+  decade?: number;
   router: ReturnType<typeof useRouter>;
 }) {
   const [items, setItems] = useState<DiscoverItem[]>([]);
@@ -778,7 +846,7 @@ function DiscoverGrid({
       setLoading(true);
       if (n === 1) setError(null);
       try {
-        const data = await discoverByGenre(mediaType, genreId, n, c.signal);
+        const data = await discoverByGenre(mediaType, { genreId, decade }, n, c.signal);
         if (c.signal.aborted) return;
         setTotalPages(data.totalPages);
         setItems((prev) => (n === 1 ? data.results : [...prev, ...data.results]));
@@ -790,7 +858,7 @@ function DiscoverGrid({
         if (!c.signal.aborted) setLoading(false);
       }
     },
-    [mediaType, genreId],
+    [mediaType, genreId, decade],
   );
 
   useEffect(() => {
@@ -926,33 +994,40 @@ function GridCard({ item, onPress }: { item: DiscoverItem; onPress: () => void }
       onPress={onPress}
       style={({ pressed }) => [styles.card, { opacity: pressed ? t.opacity.pressed : 1 }]}
     >
-      {poster ? (
-        <Image
-          source={{ uri: poster }}
-          style={[
-            styles.poster,
-            { borderRadius: t.radii.sm, backgroundColor: t.colors.bg.elevated },
-          ]}
-          contentFit="cover"
-          transition={t.durations.fast}
+      <View>
+        {poster ? (
+          <Image
+            source={{ uri: poster }}
+            style={[
+              styles.poster,
+              { borderRadius: t.radii.sm, backgroundColor: t.colors.bg.elevated },
+            ]}
+            contentFit="cover"
+            transition={t.durations.fast}
+          />
+        ) : (
+          <View
+            style={[
+              styles.poster,
+              styles.posterFallback,
+              {
+                borderRadius: t.radii.sm,
+                backgroundColor: t.colors.bg.elevated,
+                borderColor: t.colors.border.subtle,
+              },
+            ]}
+          >
+            <Text variant="caption" tone="muted">
+              No poster
+            </Text>
+          </View>
+        )}
+        <FilmBadge
+          tmdbId={item.tmdbId}
+          mediaType={item.mediaType}
+          style={[styles.filmBadge, { top: t.spacing.xs, right: t.spacing.xs }]}
         />
-      ) : (
-        <View
-          style={[
-            styles.poster,
-            styles.posterFallback,
-            {
-              borderRadius: t.radii.sm,
-              backgroundColor: t.colors.bg.elevated,
-              borderColor: t.colors.border.subtle,
-            },
-          ]}
-        >
-          <Text variant="caption" tone="muted">
-            No poster
-          </Text>
-        </View>
-      )}
+      </View>
       <Text variant="bodyStrong" style={{ marginTop: t.spacing.sm }}>
         {item.title}
       </Text>
@@ -973,6 +1048,7 @@ const styles = StyleSheet.create({
   resultRow: { flexDirection: 'row', alignItems: 'center' },
   resultBody: { flex: 1, minWidth: 0 },
   tvChip: { position: 'absolute' },
+  filmBadge: { position: 'absolute' },
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',

@@ -12,7 +12,14 @@ export type StatsEntry = Pick<
 
 export type StatsCacheRow = Pick<
   MediaCacheRow,
-  'tmdbId' | 'mediaType' | 'genreIds' | 'runtime' | 'director' | 'seasons'
+  | 'tmdbId'
+  | 'mediaType'
+  | 'genreIds'
+  | 'runtime'
+  | 'director'
+  | 'directorIds'
+  | 'seasons'
+  | 'popularity'
 >;
 
 export type GenreMap = Map<number, string>;
@@ -25,7 +32,7 @@ export type Summary = {
   avgRating: number;
 };
 
-export type Bucket = { label: string; count: number };
+export type Bucket = { label: string; count: number; id?: number };
 
 export type MonthCount = { year: number; month: number; count: number };
 
@@ -270,30 +277,39 @@ export function topDirectors(
     cacheByKey.set(`${c.mediaType}:${c.tmdbId}`, c);
   }
 
-  // key (lowercased) → { display, count }
-  const byKey = new Map<string, { display: string; count: number }>();
+  // key (lowercased) → { display, count, id }
+  // ids pair positionally to the ` & `-joined director string.
+  const byKey = new Map<
+    string,
+    { display: string; count: number; id?: number }
+  >();
   for (const e of entries) {
     const cacheMt: 'movie' | 'tv' = e.mediaType === 'movie' ? 'movie' : 'tv';
     const row = cacheByKey.get(`${cacheMt}:${e.tmdbId}`);
     if (!row || !row.director) continue;
     const trimmedWhole = row.director.trim();
     if (trimmedWhole.length === 0) continue;
-    for (const piece of trimmedWhole.split(' & ')) {
+    const pieces = trimmedWhole.split(' & ');
+    pieces.forEach((piece, i) => {
       const name = piece.trim();
-      if (name.length === 0) continue;
+      if (name.length === 0) return;
       const key = name.toLowerCase();
+      const id = row.directorIds[i];
       const current = byKey.get(key);
       if (current) {
         current.count++;
+        // Preserve first-seen id; only fill in if we didn't have one yet.
+        if (current.id == null && id != null) current.id = id;
       } else {
-        byKey.set(key, { display: name, count: 1 });
+        byKey.set(key, { display: name, count: 1, id: id ?? undefined });
       }
-    }
+    });
   }
 
-  const buckets: Bucket[] = [...byKey.values()].map(({ display, count }) => ({
+  const buckets: Bucket[] = [...byKey.values()].map(({ display, count, id }) => ({
     label: display,
     count,
+    ...(id != null ? { id } : {}),
   }));
   buckets.sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;

@@ -20,6 +20,7 @@ import {
   GenreDonut,
   SectionTitle,
   SettingsSheet,
+  TasteCard,
   type SettingsSheetHandle,
 } from '@/components';
 import { useTheme } from '@/theme';
@@ -27,8 +28,6 @@ import {
   listEntries,
   type DiaryEntry,
 } from '@/db/diary';
-import { countWatchlist } from '@/db/watchlist';
-import { countStandouts } from '@/db/standouts';
 import {
   listAllCache,
   upsertMediaCache,
@@ -56,6 +55,7 @@ import {
   type StatsEntry,
   type StatsCacheRow,
 } from '@/lib/stats';
+import { tasteProfile } from '@/lib/taste';
 
 const BAR_TRACK_HEIGHT = 8;
 const BAR_TRACK_HEIGHT_LG = 10;
@@ -78,8 +78,6 @@ export default function YouScreen() {
 
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [cache, setCache] = useState<MediaCacheRow[]>([]);
-  const [watchlistCount, setWatchlistCount] = useState(0);
-  const [standoutsCount, setStandoutsCount] = useState(0);
   const [genreMaps, setGenreMaps] = useState<{ movie: GenreMap; tv: GenreMap } | null>(null);
   const [backfillRemaining, setBackfillRemaining] = useState(0);
 
@@ -88,17 +86,10 @@ export default function YouScreen() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        const [es, cs, wc, sc] = await Promise.all([
-          listEntries(),
-          listAllCache(),
-          countWatchlist(),
-          countStandouts(),
-        ]);
+        const [es, cs] = await Promise.all([listEntries(), listAllCache()]);
         if (cancelled) return;
         setEntries(es);
         setCache(cs);
-        setWatchlistCount(wc);
-        setStandoutsCount(sc);
       })();
       return () => {
         cancelled = true;
@@ -140,7 +131,8 @@ export default function YouScreen() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    // Pre-migration TV rows have empty seasons — re-enqueue them so TV hours can populate.
+    // Pre-migration rows can have empty seasons / null popularity / no director ids —
+    // re-enqueue so the dependent stats (TV hours, mainstream-cult, director taps) populate.
     const cacheByKey = new Map(
       cacheRef.current.map((c) => [`${c.mediaType}:${c.tmdbId}`, c]),
     );
@@ -153,7 +145,16 @@ export default function YouScreen() {
       const existing = cacheByKey.get(key);
       const needsSeasonsBackfill =
         existing && mt === 'tv' && existing.seasons.length === 0;
-      if (existing && !needsSeasonsBackfill) continue;
+      const needsPopularityBackfill = existing && existing.popularity == null;
+      const needsDirectorIdsBackfill =
+        existing && existing.director != null && existing.directorIds.length === 0;
+      if (
+        existing &&
+        !needsSeasonsBackfill &&
+        !needsPopularityBackfill &&
+        !needsDirectorIdsBackfill
+      )
+        continue;
       seen.add(key);
       todo.push({ tmdbId: e.tmdbId, mediaType: mt });
     }
@@ -188,7 +189,9 @@ export default function YouScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.runtime,
             director: d.director,
+            directorIds: d.directorIds,
             seasons: [],
+            popularity: d.popularity,
           });
           if (controller.signal.aborted) return;
           setCache((prev) => mergeRow(prev, row));
@@ -201,10 +204,12 @@ export default function YouScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.episodeRuntime,
             director: d.creators,
+            directorIds: d.creatorIds,
             seasons: d.seasons.map((s) => ({
               seasonNumber: s.seasonNumber,
               episodeCount: s.episodeCount,
             })),
+            popularity: d.popularity,
           });
           if (controller.signal.aborted) return;
           setCache((prev) => mergeRow(prev, row));
@@ -272,6 +277,10 @@ export default function YouScreen() {
     () => filmHoursWatched(statsEntries, statsCache),
     [statsEntries, statsCache],
   );
+  const taste = useMemo(
+    () => tasteProfile(statsEntries, statsCache, now),
+    [statsEntries, statsCache, now],
+  );
   const tvHours = useMemo(
     () => tvSeasonHoursWatched(statsEntries, statsCache),
     [statsEntries, statsCache],
@@ -322,13 +331,12 @@ export default function YouScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
         <SettingsRow onPress={openSettings} />
-        <SummaryCard
-          sum={sum}
-          watchlistCount={watchlistCount}
-          standoutsCount={standoutsCount}
+        <TasteCard
+          profile={taste}
           filmHours={filmHours}
           tvHours={tvHours}
-          backfilling={backfilling}
+          totalMovies={sum.totalMovies}
+          totalSeasons={sum.totalSeasons}
         />
 
         {hasRatings ? (
@@ -495,108 +503,6 @@ function AnimatedHBar({
   );
 }
 
-function SummaryCard({
-  sum,
-  watchlistCount,
-  standoutsCount,
-  filmHours,
-  tvHours,
-  backfilling,
-}: {
-  sum: ReturnType<typeof summary>;
-  watchlistCount: number;
-  standoutsCount: number;
-  filmHours: number;
-  tvHours: number;
-  backfilling: boolean;
-}) {
-  const t = useTheme();
-  const filmHoursLabel = backfilling
-    ? `${Math.round(filmHours)}h+ (indexing)`
-    : `${Math.round(filmHours)}h`;
-  const tvHoursLabel = backfilling
-    ? `${Math.round(tvHours)}h+ (indexing)`
-    : `${Math.round(tvHours)}h`;
-  return (
-    <View
-      style={[
-        styles.summaryCard,
-        {
-          backgroundColor: t.colors.bg.surface,
-          margin: t.spacing.lg,
-          padding: t.spacing.lg,
-          borderRadius: t.radii.md,
-        },
-      ]}
-    >
-      <Text
-        variant="label"
-        tone="muted"
-        style={{
-          textTransform: 'uppercase',
-          letterSpacing: t.tracking.label,
-        }}
-      >
-        This year
-      </Text>
-      <Text variant="displayMd" style={{ marginTop: t.spacing.xs }}>
-        {sum.currentYearMovies} film{sum.currentYearMovies === 1 ? '' : 's'} ·{' '}
-        {sum.currentYearSeasons} season{sum.currentYearSeasons === 1 ? '' : 's'}
-      </Text>
-
-      <Text
-        variant="label"
-        tone="muted"
-        style={{
-          marginTop: t.spacing.lg,
-          textTransform: 'uppercase',
-          letterSpacing: t.tracking.label,
-        }}
-      >
-        All time
-      </Text>
-      <Text variant="bodyStrong" style={{ marginTop: t.spacing.xs }}>
-        {sum.totalMovies} film{sum.totalMovies === 1 ? '' : 's'} · {sum.totalSeasons} season
-        {sum.totalSeasons === 1 ? '' : 's'}
-      </Text>
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
-        {watchlistCount} on watchlist · {standoutsCount} standout episode
-        {standoutsCount === 1 ? '' : 's'}
-      </Text>
-
-      {sum.avgRating > 0 ? (
-        <View style={[styles.avgRow, { marginTop: t.spacing.md, gap: t.spacing.sm }]}>
-          <Text variant="label" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}>
-            Avg rating
-          </Text>
-          <StarRating value={sum.avgRating} size={16} readOnly />
-          <Text variant="caption" tone="muted">
-            {sum.avgRating.toFixed(1)}
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.avgRow, { marginTop: t.spacing.sm, gap: t.spacing.sm }]}>
-        <Text variant="label" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}>
-          Film hours
-        </Text>
-        <Text variant="caption" tone="muted">
-          {filmHoursLabel}
-        </Text>
-      </View>
-
-      <View style={[styles.avgRow, { marginTop: t.spacing.xs, gap: t.spacing.sm }]}>
-        <Text variant="label" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}>
-          TV hours
-        </Text>
-        <Text variant="caption" tone="muted">
-          {tvHoursLabel}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 function RatingHistogram({
   buckets,
 }: {
@@ -643,40 +549,64 @@ function RatingHistogram({
 
 function TopDirectors({ buckets }: { buckets: Bucket[] }) {
   const t = useTheme();
+  const router = useRouter();
   const max = Math.max(1, ...buckets.map((b) => b.count));
   const { progress, totalMs } = useChartProgress(buckets.length);
   return (
     <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
-      {buckets.map((b, i) => (
-        <View key={b.label} style={[styles.barRow, { gap: t.spacing.sm }]}>
-          <Text variant="caption" style={{ width: 88 }} numberOfLines={1}>
-            {b.label}
-          </Text>
-          <View
-            style={[
-              styles.barTrack,
+      {buckets.map((b, i) => {
+        const canTap = b.id != null;
+        const onPress = () => {
+          if (b.id != null) router.push(`/person/${b.id}`);
+        };
+        return (
+          <Pressable
+            key={b.label}
+            onPress={onPress}
+            disabled={!canTap}
+            accessibilityRole="button"
+            accessibilityLabel={`${b.label}, ${b.count} ${b.count === 1 ? 'film' : 'films'}`}
+            style={({ pressed }) => [
+              styles.barRow,
               {
-                height: BAR_TRACK_HEIGHT_LG,
-                backgroundColor: t.colors.bg.elevated,
-                borderRadius: t.radii.pill,
+                gap: t.spacing.sm,
+                opacity: pressed && canTap ? t.opacity.pressed : 1,
               },
             ]}
           >
-            <AnimatedHBar
-              progress={progress}
-              totalMs={totalMs}
-              index={i}
-              ratio={b.count / max}
-              height={BAR_TRACK_HEIGHT_LG}
-              color={t.colors.accent.base}
-              radius={t.radii.pill}
-            />
-          </View>
-          <Text variant="caption" tone="muted" style={{ width: 32, textAlign: 'right' }}>
-            {b.count}
-          </Text>
-        </View>
-      ))}
+            <Text
+              variant="caption"
+              numberOfLines={1}
+              style={styles.directorLabel}
+            >
+              {b.label}
+            </Text>
+            <View
+              style={[
+                styles.barTrack,
+                {
+                  height: BAR_TRACK_HEIGHT_LG,
+                  backgroundColor: t.colors.bg.elevated,
+                  borderRadius: t.radii.pill,
+                },
+              ]}
+            >
+              <AnimatedHBar
+                progress={progress}
+                totalMs={totalMs}
+                index={i}
+                ratio={b.count / max}
+                height={BAR_TRACK_HEIGHT_LG}
+                color={t.colors.accent.base}
+                radius={t.radii.pill}
+              />
+            </View>
+            <Text variant="caption" tone="muted" style={{ width: 32, textAlign: 'right' }}>
+              {b.count}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -771,10 +701,9 @@ function TopRatedRow({
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  summaryCard: {},
-  avgRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   barRow: { flexDirection: 'row', alignItems: 'center' },
   barTrack: { flex: 1, overflow: 'hidden' },
   topRatedRow: { flexDirection: 'row', alignItems: 'center' },
+  directorLabel: { flexShrink: 1, flexBasis: 'auto', minWidth: 0, maxWidth: '50%' },
   topRatedBody: { flex: 1, minWidth: 0 },
 });

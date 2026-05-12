@@ -8,6 +8,7 @@ import { useTheme } from '@/theme';
 import { addEntry, type EntryMediaType } from '@/db/diary';
 import { isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 import { haptic } from '@/lib/haptics';
+import { useFilmContext } from '@/lib/film-context';
 
 type SeededTarget = {
   tmdbId: number;
@@ -64,6 +65,7 @@ function parseSeededTarget(params: {
 export default function NewEntryScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { refresh } = useFilmContext();
 
   const params = useLocalSearchParams<{
     tmdbId?: string;
@@ -102,6 +104,7 @@ export default function NewEntryScreen() {
           await removeFromWatchlist(target.tmdbId, 'movie');
         }
       }
+      await refresh();
       haptic.success();
       router.back();
     } catch (e) {

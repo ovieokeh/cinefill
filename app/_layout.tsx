@@ -14,6 +14,7 @@ import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import 'react-native-reanimated';
 
 import { ThemeProvider, tokens } from '@/theme';
+import { FilmContextProvider } from '@/lib/film-context';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -46,7 +47,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: tokens.colors.bg.app }}>
       <KeyboardProvider>
         <BottomSheetModalProvider>
-          <ThemeProvider>
+          <FilmContextProvider>
+            <ThemeProvider>
             <Stack
               screenOptions={{
                 headerStyle: { backgroundColor: tokens.colors.bg.app },
@@ -95,6 +97,7 @@ export default function RootLayout() {
             </Stack>
             <StatusBar style="light" />
           </ThemeProvider>
+          </FilmContextProvider>
         </BottomSheetModalProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

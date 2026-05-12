@@ -24,3 +24,5 @@ export type { SettingsSheetHandle } from './SettingsSheet';
 export { Skeleton, SkeletonText, SkeletonPoster } from './Skeleton';
 export { ActivityLineChart } from './ActivityLineChart';
 export { GenreDonut } from './GenreDonut';
+export { TasteCard } from './TasteCard';
+export { FilmBadge } from './FilmBadge';

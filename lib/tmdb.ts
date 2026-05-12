@@ -24,7 +24,9 @@ export type MovieDetails = {
   backdropPath: string | null;
   posterPath: string | null;
   director: string | null;
+  directorIds: number[];
   certification: string | null;
+  popularity: number | null;
   cast: { id: number; name: string; character: string; profilePath: string | null }[];
   keyCrew: { role: string; members: { id: number; name: string }[] }[];
   trailerYoutubeKey: string | null;
@@ -95,6 +97,7 @@ type RawMovieDetails = {
   tagline: string;
   overview: string;
   runtime: number | null;
+  popularity?: number;
   genres: { id: number; name: string }[];
   backdrop_path: string | null;
   poster_path: string | null;
@@ -287,7 +290,9 @@ export type TvDetails = {
   backdropPath: string | null;
   posterPath: string | null;
   creators: string | null;
+  creatorIds: number[];
   certification: string | null;
+  popularity: number | null;
   status: string;
   numberOfSeasons: number | null;
   cast: { id: number; name: string; character: string; profilePath: string | null }[];
@@ -340,6 +345,7 @@ type RawTvDetails = {
   name: string;
   tagline: string;
   overview: string;
+  popularity?: number;
   episode_run_time: number[];
   first_air_date: string | null;
   last_air_date: string | null;
@@ -464,13 +470,14 @@ export async function getTvDetails(tvId: number, signal?: AbortSignal): Promise<
   }
 
   const raw = (await res.json()) as RawTvDetails;
+  const createdByList = (raw.created_by ?? []).slice(0, 2);
   const creators =
-    raw.created_by && raw.created_by.length > 0
-      ? raw.created_by
-          .map((c) => c.name)
-          .slice(0, 2)
-          .join(' & ')
+    createdByList.length > 0
+      ? createdByList.map((c) => c.name).join(' & ')
       : null;
+  const creatorIds = createdByList
+    .map((c) => Number(c.id))
+    .filter((n) => Number.isFinite(n));
 
   return {
     tmdbId: raw.id,
@@ -483,7 +490,9 @@ export async function getTvDetails(tvId: number, signal?: AbortSignal): Promise<
     backdropPath: raw.backdrop_path,
     posterPath: raw.poster_path,
     creators,
+    creatorIds,
     certification: pickTvUsCertification(raw.content_ratings),
+    popularity: raw.popularity ?? null,
     status: raw.status,
     numberOfSeasons: raw.number_of_seasons,
     cast: pickTvCast(raw.aggregate_credits?.cast),
@@ -627,16 +636,51 @@ type RawDiscoverResponse = {
   results: RawDiscoverResult[];
 };
 
+export type DiscoverFilters = {
+  genreId?: number;
+  /** Start year of a decade (e.g. 1990 → 1990-01-01..1999-12-31). */
+  decade?: number;
+};
+
+function decadeQueryFragment(
+  mediaType: 'movie' | 'tv',
+  decade: number | undefined,
+): string {
+  if (decade == null || !Number.isFinite(decade)) return '';
+  const start = `${decade}-01-01`;
+  const end = `${decade + 9}-12-31`;
+  if (mediaType === 'movie') {
+    return `&primary_release_date.gte=${start}&primary_release_date.lte=${end}`;
+  }
+  return `&first_air_date.gte=${start}&first_air_date.lte=${end}`;
+}
+
 export async function discoverByGenre(
   mediaType: 'movie' | 'tv',
-  genreId: number,
+  filtersOrGenreId: number | DiscoverFilters,
   page: number,
   signal?: AbortSignal,
 ): Promise<DiscoverPage> {
   assertTmdbConfigured();
-  const url = `${TMDB_BASE}/discover/${mediaType}?with_genres=${encodeURIComponent(
-    String(genreId),
-  )}&sort_by=popularity.desc&include_adult=false&language=en-US&page=${page}`;
+  const filters: DiscoverFilters =
+    typeof filtersOrGenreId === 'number'
+      ? { genreId: filtersOrGenreId }
+      : filtersOrGenreId;
+  const params = [
+    filters.genreId != null
+      ? `with_genres=${encodeURIComponent(String(filters.genreId))}`
+      : null,
+    `sort_by=popularity.desc`,
+    `include_adult=false`,
+    `language=en-US`,
+    `page=${page}`,
+  ]
+    .filter((p): p is string => p !== null)
+    .join('&');
+  const url = `${TMDB_BASE}/discover/${mediaType}?${params}${decadeQueryFragment(
+    mediaType,
+    filters.decade,
+  )}`;
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${config.tmdbReadToken}`,
@@ -669,6 +713,15 @@ export async function discoverByGenre(
     totalPages: Math.min(json.total_pages ?? 1, 500),
     results,
   };
+}
+
+export async function discoverByDecade(
+  mediaType: 'movie' | 'tv',
+  decade: number,
+  page: number,
+  signal?: AbortSignal,
+): Promise<DiscoverPage> {
+  return discoverByGenre(mediaType, { decade }, page, signal);
 }
 
 export type MovieSearchResult = {
@@ -856,10 +909,21 @@ function pickTrailer(videos: RawVideo[] | undefined): string | null {
 }
 
 function pickDirector(crew: RawCrewMember[] | undefined): string | null {
-  if (!crew) return null;
-  const directors = crew.filter((c) => c.job === 'Director').map((c) => c.name);
-  if (directors.length === 0) return null;
-  return directors.slice(0, 2).join(' & ');
+  const { names } = pickDirectors(crew);
+  if (names.length === 0) return null;
+  return names.join(' & ');
+}
+
+function pickDirectors(
+  crew: RawCrewMember[] | undefined,
+): { names: string[]; ids: number[] } {
+  if (!crew) return { names: [], ids: [] };
+  const directors = crew.filter((c) => c.job === 'Director');
+  if (directors.length === 0) return { names: [], ids: [] };
+  return {
+    names: directors.slice(0, 2).map((c) => c.name),
+    ids: directors.slice(0, 2).map((c) => Number(c.id)).filter((n) => Number.isFinite(n)),
+  };
 }
 
 const CREW_ROLE_MAP: { jobs: string[]; label: string }[] = [
@@ -958,7 +1022,9 @@ export async function getMovieDetails(
     backdropPath: raw.backdrop_path,
     posterPath: raw.poster_path,
     director: pickDirector(raw.credits?.crew),
+    directorIds: pickDirectors(raw.credits?.crew).ids,
     certification: pickUsCertification(raw.release_dates),
+    popularity: raw.popularity ?? null,
     cast,
     keyCrew: pickKeyCrew(raw.credits?.crew),
     trailerYoutubeKey: pickTrailer(raw.videos?.results),

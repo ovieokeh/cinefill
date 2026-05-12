@@ -31,7 +31,9 @@ function cacheRow(
     genreIds: [],
     runtime: null,
     director: null,
+    directorIds: [],
     seasons: [],
+    popularity: null,
     ...overrides,
   };
 }
@@ -547,6 +549,43 @@ describe('topDirectors', () => {
       5,
     );
     expect(result).toEqual([{ label: 'Greta Gerwig', count: 1 }]);
+  });
+
+  test('pairs director names to ids positionally', () => {
+    const result = topDirectors(
+      [entry({ tmdbId: 1, mediaType: 'movie' })],
+      [
+        cacheRow({
+          tmdbId: 1,
+          mediaType: 'movie',
+          director: 'Joel Coen & Ethan Coen',
+          directorIds: [1054, 1223],
+        }),
+      ],
+      5,
+    );
+    expect(result).toEqual([
+      { label: 'Ethan Coen', count: 1, id: 1223 },
+      { label: 'Joel Coen', count: 1, id: 1054 },
+    ]);
+  });
+
+  test('name without an id surfaces a bucket with id undefined', () => {
+    const result = topDirectors(
+      [entry({ tmdbId: 1, mediaType: 'movie' })],
+      [
+        cacheRow({
+          tmdbId: 1,
+          mediaType: 'movie',
+          director: 'Mystery Director',
+          directorIds: [],
+        }),
+      ],
+      5,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ label: 'Mystery Director', count: 1 });
+    expect(result[0].id).toBeUndefined();
   });
 
   test("' & '-joined director string produces two buckets", () => {

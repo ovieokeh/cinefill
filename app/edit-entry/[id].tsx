@@ -18,12 +18,14 @@ import {
 import { useTheme } from '@/theme';
 import { getEntry, updateEntry, type DiaryEntry } from '@/db/diary';
 import { haptic } from '@/lib/haptics';
+import { useFilmContext } from '@/lib/film-context';
 
 type EntryState = DiaryEntry | null | 'missing';
 
 export default function EditEntryScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { refresh } = useFilmContext();
   const { id } = useLocalSearchParams<{ id: string }>();
   const entryId = Number(id);
 
@@ -65,6 +67,7 @@ export default function EditEntryScreen() {
         rating,
         note: note.trim(),
       });
+      await refresh();
       haptic.success();
       router.back();
     } catch (e) {
