@@ -49,6 +49,17 @@ If a commit blocks, fix the issue at the source — do **not** use `--no-verify`
 
 Run the same checks ad-hoc with `npm run typecheck`, `npm test`, and `npm run lint`.
 
+## Typography
+
+cinefill uses **Fraunces** (variable serif) for display + title variants and **Inter** for body / caption / label, both delivered via `@expo-google-fonts/*` subpackages. Fonts are loaded at app boot in `app/_layout.tsx` via `useFonts`; the splash screen is held until they're ready (or fail to load — in which case we proceed with system fallbacks).
+
+Adding a new weight:
+1. Import the weight from the per-family subpackage (e.g. `Fraunces_400Regular` from `@expo-google-fonts/fraunces`).
+2. Register it in `app/_layout.tsx`'s `useFonts({...})`.
+3. Reference its registered name (matches the import name) from `theme/tokens.ts`.
+
+Each weight is ~50KB bundled. Don't add weights speculatively — only when a token variant needs one.
+
 ## Where logic lives
 
 Non-trivial business logic — stat aggregation, format transforms, filter rules — goes in **pure-function modules under `lib/`** with **co-located tests** in `lib/__tests__/`. `db/` exposes raw reads; screens orchestrate; `lib/` does the math. Pure functions that depend on "now" should accept it as an optional argument so tests can pin time. Jest config: `preset: 'ts-jest'`, `testEnvironment: 'node'`, `moduleNameMapper: { '^@/(.*)$': '<rootDir>/$1' }`.

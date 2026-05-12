@@ -16,6 +16,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: tokens.colors.bg.app },
         headerTitleStyle: {
           color: tokens.colors.text.primary,
+          fontFamily: tokens.typography.titleMd.fontFamily,
           fontSize: tokens.typography.titleMd.fontSize,
           fontWeight: tokens.typography.titleMd.fontWeight,
         },

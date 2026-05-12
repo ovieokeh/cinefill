@@ -56,30 +56,26 @@ export const radii = {
   pill: 999,
 } as const;
 
-const fontFamily = Platform.select({
-  ios: 'System',
-  android: 'sans-serif',
-  default: 'System',
-}) as string;
-
-const fontFamilyMedium = Platform.select({
-  ios: 'System',
-  android: 'sans-serif-medium',
-  default: 'System',
-}) as string;
+// Font family names match the @expo-google-fonts imports registered in app/_layout.tsx
+// via useFonts(). Adding a new weight: install the per-family subpackage, register the
+// weight import in app/_layout.tsx, then reference its name here.
+const fontDisplayBold = 'Fraunces_700Bold';
+const fontDisplaySemi = 'Fraunces_600SemiBold';
+const fontBody = 'Inter_400Regular';
+const fontBodySemi = 'Inter_600SemiBold';
 
 export const typography: Record<
   'displayLg' | 'displayMd' | 'titleLg' | 'titleMd' | 'body' | 'bodyStrong' | 'label' | 'caption' | 'mono',
   TextStyle
 > = {
-  displayLg: { fontFamily: fontFamilyMedium, fontSize: 32, lineHeight: 38, fontWeight: '700' },
-  displayMd: { fontFamily: fontFamilyMedium, fontSize: 24, lineHeight: 30, fontWeight: '700' },
-  titleLg: { fontFamily: fontFamilyMedium, fontSize: 20, lineHeight: 26, fontWeight: '600' },
-  titleMd: { fontFamily: fontFamilyMedium, fontSize: 16, lineHeight: 22, fontWeight: '600' },
-  body: { fontFamily, fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  bodyStrong: { fontFamily: fontFamilyMedium, fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  label: { fontFamily: fontFamilyMedium, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  caption: { fontFamily, fontSize: 12, lineHeight: 16, fontWeight: '400' },
+  displayLg: { fontFamily: fontDisplayBold, fontSize: 32, lineHeight: 38, fontWeight: '700' },
+  displayMd: { fontFamily: fontDisplayBold, fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  titleLg: { fontFamily: fontDisplaySemi, fontSize: 20, lineHeight: 26, fontWeight: '600' },
+  titleMd: { fontFamily: fontDisplaySemi, fontSize: 16, lineHeight: 22, fontWeight: '600' },
+  body: { fontFamily: fontBody, fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  bodyStrong: { fontFamily: fontBodySemi, fontSize: 15, lineHeight: 22, fontWeight: '600' },
+  label: { fontFamily: fontBodySemi, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  caption: { fontFamily: fontBody, fontSize: 12, lineHeight: 16, fontWeight: '400' },
   mono: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }), fontSize: 13, lineHeight: 18 },
 };
 
