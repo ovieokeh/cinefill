@@ -20,7 +20,7 @@
     "submit:ios:local": "eas submit --profile production --platform ios --path"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "{app,components,db,lib,theme,scripts}/**/*.{ts,tsx}": [
       "expo lint --fix --max-warnings 0",
       "node scripts/check-style-tokens.mjs"
     ]
