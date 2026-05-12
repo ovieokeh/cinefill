@@ -1,141 +1,107 @@
 # cinefill
 
-React Native (Expo SDK 54) Letterboxd-style app. v0 surface: **Diary** — log films you've watched, view past entries.
+React Native (Expo SDK 54) Letterboxd-style app. v0 is local-only **Diary**: log watched films and view past entries.
 
-This file is the canonical reference for project conventions. Read it before touching code. If a rule below conflicts with what you'd "naturally" write, the rule wins — every rule is here because not following it broke something.
-
----
+This is the canonical conventions file. Follow it over personal preference.
 
 ## Stack
 
-- **Toolchain:** Expo SDK 54, expo-router v6, React 19, RN 0.81 (New Architecture / Fabric enabled).
-- **Storage:** Local-only via `expo-sqlite`. No backend, no auth in v0.
-- **Film data:** TMDB API (v4 read access token via `.env` → `app.config.ts.extra` → `expo-constants`).
-- **Keyboard:** `react-native-keyboard-controller` (in Expo Go).
-- **Dates:** `date-fns`.
+- Expo SDK 54, expo-router v6, React 19, RN 0.81, New Architecture/Fabric enabled.
+- Storage: local `expo-sqlite`; no backend, auth, sync, or web support in v0.
+- Film data: TMDB via `.env` -> `app.config.ts.extra` -> `expo-constants`.
+- Keyboard: `react-native-keyboard-controller`; dates: `date-fns`.
+- `.env` contains `TMDB_API_READ_ACCESS_TOKEN` and `TMDB_API_KEY`; restart Metro after changes.
 
-`.env` (gitignored) holds `TMDB_API_READ_ACCESS_TOKEN` and `TMDB_API_KEY`. Restart metro after changing it.
-
----
-
-## File layout
+## Layout
 
 ```
 app/                  # expo-router routes
-  _layout.tsx           # root Stack + KeyboardProvider + GestureHandlerRootView + ThemeProvider
-  (tabs)/
-    _layout.tsx         # bottom tabs (Diary so far)
-    index.tsx           # Diary list
-  new-entry.tsx         # Add-entry modal screen
-components/           # shared UI primitives (see "Components" below)
-db/diary.ts           # SQLite schema + CRUD for the diary
-lib/tmdb.ts           # TMDB client (searchMovies, posterUrl)
-lib/config.ts         # reads TMDB token via expo-constants
-theme/                # design tokens + ThemeProvider/useTheme
+  _layout.tsx         # Stack + KeyboardProvider + GestureHandlerRootView + ThemeProvider
+  (tabs)/             # bottom tabs; Diary lives at index.tsx
+  new-entry.tsx       # add-entry modal
+components/           # shared UI primitives
+db/diary.ts           # SQLite schema + diary CRUD
+lib/tmdb.ts           # TMDB client
+lib/config.ts         # expo-constants config access
+theme/                # tokens + ThemeProvider/useTheme
 ```
 
----
+## Checks
 
-## Pre-commit hook
+Pre-commit runs:
 
-`husky` + `lint-staged` are configured. Every `git commit` runs, in order:
+1. `tsc --noEmit`
+2. `jest --passWithNoTests --silent`
+3. `expo lint --fix --max-warnings 0`
+4. `node scripts/check-style-tokens.mjs`
 
-1. **`tsc --noEmit`** — full-project type-check.
-2. **`jest --passWithNoTests --silent`** — unit tests under `**/__tests__/*.test.ts`.
-3. **`expo lint --fix --max-warnings 0`** — ESLint on staged files (treats warnings as errors).
-4. **`node scripts/check-style-tokens.mjs`** — custom guard that rejects inline hex colors, `rgba()`/`hsla()`, and inline numeric literals for spacing/typography/radius/letterSpacing/gap properties. Exempts `theme/tokens.ts`. Allows `0`, `StyleSheet.hairlineWidth`, and percentage strings.
+Run ad hoc with `npm run typecheck`, `npm test`, and `npm run lint`. Fix failures at the source; do not use `--no-verify` unless the user explicitly authorizes an emergency bypass.
 
-If a commit blocks, fix the issue at the source — do **not** use `--no-verify` to bypass. The whole point of the hook is to keep the design-token rule mechanically enforced. The only legitimate reason to bypass would be an emergency hotfix the user explicitly authorizes.
+The token checker rejects inline hex colors, `rgba()`/`hsla()`, and inline numeric literals for spacing/typography/radius/letterSpacing/gap style props. `theme/tokens.ts`, `0`, `StyleSheet.hairlineWidth`, and percentage strings are allowed.
 
-Run the same checks ad-hoc with `npm run typecheck`, `npm test`, and `npm run lint`.
+IMPORTANT: Never commit a broken build (web or mobile) as pushes trigger EAS and Nixpack builds. Unless explicity told otherwise, always confirm with the user before committing.
 
 ## Typography
 
-cinefill uses **Fraunces** (variable serif) for display + title variants and **Inter** for body / caption / label, both delivered via `@expo-google-fonts/*` subpackages. Fonts are loaded at app boot in `app/_layout.tsx` via `useFonts`; the splash screen is held until they're ready (or fail to load — in which case we proceed with system fallbacks).
+- Display/title: Fraunces. Body/caption/label: Inter.
+- Fonts load in `app/_layout.tsx` via `useFonts`; splash waits until fonts are ready or failed.
+- Add a weight only when a token needs it: import from the family package, register in `useFonts`, then reference the registered name from `theme/tokens.ts`.
 
-Adding a new weight:
-1. Import the weight from the per-family subpackage (e.g. `Fraunces_400Regular` from `@expo-google-fonts/fraunces`).
-2. Register it in `app/_layout.tsx`'s `useFonts({...})`.
-3. Reference its registered name (matches the import name) from `theme/tokens.ts`.
+## Logic
 
-Each weight is ~50KB bundled. Don't add weights speculatively — only when a token variant needs one.
+- Put non-trivial business logic in pure modules under `lib/` with co-located tests in `lib/__tests__/`.
+- `db/` exposes raw reads/writes; screens orchestrate; `lib/` transforms, filters, and aggregates.
+- Pure functions that depend on time should accept `now` as an optional argument.
+- Jest uses `ts-jest`, `testEnvironment: 'node'`, and `@/* -> <rootDir>/*`.
 
-## Where logic lives
+## Hard Rules
 
-Non-trivial business logic — stat aggregation, format transforms, filter rules — goes in **pure-function modules under `lib/`** with **co-located tests** in `lib/__tests__/`. `db/` exposes raw reads; screens orchestrate; `lib/` does the math. Pure functions that depend on "now" should accept it as an optional argument so tests can pin time. Jest config: `preset: 'ts-jest'`, `testEnvironment: 'node'`, `moduleNameMapper: { '^@/(.*)$': '<rootDir>/$1' }`.
+### 1. Use Theme Tokens
 
-## Hard rules
-
-### 1. Every style value goes through `theme/tokens.ts`
-
-No inline color/spacing/typography/radii/shadow literals **anywhere** in app code. If you need a new value (e.g. a new gray, a new spacing step), add it to `theme/tokens.ts` first and use it from there.
+No inline colors, spacing, typography, radii, or shadows in app code. Add missing values to `theme/tokens.ts` first, prefer semantic names, and access them through `useTheme()`.
 
 ```tsx
-// ✗ wrong
-<View style={{ padding: 16, backgroundColor: '#171B21' }} />
-
-// ✓ right
 const t = useTheme();
-<View style={{ padding: t.spacing.lg, backgroundColor: t.colors.bg.surface }} />
+<View style={{ padding: t.spacing.lg, backgroundColor: t.colors.bg.surface }} />;
 ```
 
-Prefer **semantic** token names (`colors.bg.surface`, `colors.text.primary`) over palette names. The whole point of tokens is so we can swap the visual style later in one file; semantic names survive the swap, palette names don't.
+### 2. Use Shared Components
 
-### 2. Use the shared components, don't roll new ones
+Import from `@/components`: `Screen`, `Text`, `Input`, `Button`, `StarRating`, `PosterImage`, `DateField`, `EntryRow`, and skeleton helpers.
 
-```tsx
-import { Screen, Text, Input, Button, StarRating, PosterImage, DateField, EntryRow } from '@/components';
-```
+If a shared component needs a variation, add a prop instead of creating a parallel component. `Text` replaces `RNText`; `Screen` is every screen's outer wrapper.
 
-- `Screen` — every screen's outermost wrapper. Handles SafeArea (defaults to `edges=['bottom']` only — see "Safe area + nav" below) and the app background.
-- `Text` — replaces `RNText`. Props: `variant` (typography token key), `tone` (semantic color).
-- `Input` — text field with label, multiline support, token styling.
-- `Button` — primary / ghost variants, loading, disabled.
-- `StarRating` — half-star, tappable (discrete half-cell tap targets, not coordinate math).
-- `PosterImage` — TMDB poster with sm/md/lg sizes and a token-styled fallback.
-- `DateField` — native iOS/Android date picker with a labelled trigger.
-- `EntryRow` — diary entry card.
+### 3. Safe Area + Navigation
 
-If you need a variant of one of these, add a prop. Don't write a parallel component.
+Navigator headers already absorb the top inset, so `Screen` defaults to `edges={['bottom']}`. Do not add `'top'` unless the screen has no nav header.
 
-### 3. Safe-area + navigation
+Tab routes under `app/(tabs)/*` should pass `edges={[]}` because the tab bar already absorbs the bottom inset. Non-tab stack screens and modals keep the default bottom edge.
 
-Every route in this app sits inside a navigator (Stack/Tabs) whose header already absorbs the top safe-area inset. `Screen` defaults to `edges={['bottom']}` for that reason — **do not** re-add `'top'` unless the screen has no nav header (custom splash, etc.). Symptom of getting this wrong: a huge empty gap below the nav header.
+### 4. Fabric A11y Values Are Integers
 
-The bottom inset has the same trap in reverse: routes under `app/(tabs)/*` are wrapped by a bottom tab bar that already absorbs the home-indicator inset. Pass `edges={[]}` on those screens so the inset isn't counted twice. Symptom of getting this wrong: a persistent ~24–34 px blank strip right above the tab bar on every tab. Non-tab screens (Stack pushes like `/movie/[id]`, modals) keep the default `['bottom']` because the tab bar isn't between them and the home indicator.
-
-### 4. Fabric a11y values must be integers
-
-The New Architecture coerces `accessibilityValue.{min,max,now}` to C `long long`. Passing a float crashes at render with `Exception in HostFunction: Loss of precision during arithmetic conversion`. Scale fractional values into ints and use `text` for the human-readable label:
+Fabric coerces `accessibilityValue.{min,max,now}` to C integers. Scale fractional values and put the readable value in `text`.
 
 ```tsx
 accessibilityValue={{
   min: 0,
   max: MAX * 2,
-  now: Math.round(value * 2),     // not `value` if value can be 0.5/1.5/...
+  now: Math.round(value * 2),
   text: `${value} of ${MAX} stars`,
 }}
 ```
 
-### 5. For touch-to-value inputs, render one Pressable per value
+### 5. Touch-To-Value Inputs Use One Pressable Per Value
 
-Don't read `locationX` and compute a ratio. Two reasons it bites:
+Do not compute values from `locationX`; child-relative coordinates and stretched rows make it fragile. Render discrete touch targets instead, such as one `Pressable` per star half. Constrain rows with `alignSelf: 'flex-start'` or explicit width when needed.
 
-- `locationX` is relative to whichever **child** got tapped, not the Pressable owning `onPress` — tapping a child icon gives you a tiny x, the math implodes.
-- A `flexDirection: 'row'` Pressable with no width constraint stretches to the full parent width — the "empty space" past the visible content is still inside the row, so taps out there compute a huge ratio.
+### 6. Forms Use KeyboardAwareScrollView
 
-Render the touch surface AS the value: one Pressable per discrete step (use absolutely-positioned halves over an icon for half-step inputs). No coordinates, no measurement, no surprises. Add `alignSelf: 'flex-start'` (or explicit width) to row containers if you want them not to stretch.
-
-### 6. Forms use `KeyboardAwareScrollView` from `react-native-keyboard-controller`
-
-Not RN's built-in `KeyboardAvoidingView` — it breaks inside modal presentations on iOS. The keyboard-controller component tracks the focused input via the native keyboard frame APIs and works correctly inside modals.
+Use `KeyboardAwareScrollView` from `react-native-keyboard-controller`, not RN `KeyboardAvoidingView`, especially inside iOS modals. The root `KeyboardProvider` already lives in `app/_layout.tsx`.
 
 ```tsx
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-
 <Screen padded={false}>
   <KeyboardAwareScrollView
-    contentContainerStyle={{ /* padding from tokens */ }}
+    contentContainerStyle={{ padding: t.spacing.lg }}
     keyboardShouldPersistTaps="handled"
     bottomOffset={t.spacing.lg}
     style={{ flex: 1 }}
@@ -145,70 +111,36 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 </Screen>
 ```
 
-The root `KeyboardProvider` is already in `app/_layout.tsx` — don't move it.
+### 7. Loading States Are Skeletons
 
-### 7. Loading states are content-shaped skeletons, not spinners
+Initial loads must use content-shaped skeletons, not spinners. Match the final container geometry: padding, gap, radius, background, and enough placeholder items to fill the viewport.
 
-Every load site — anywhere we render conditionally on a fetched value being null/undefined — must render a **Skeleton placeholder whose geometry matches the eventual content** so the layout doesn't shift when data arrives. `ActivityIndicator` is reserved for two specific cases:
-
-- **In-place feedback inside a fixed surface** that's not itself a load placeholder (Button loading state, genre-picker chip spinner).
-- **Bottom-of-list pagination** when more items are appending to an already-visible list.
-
-Everywhere else (full-screen loads, list/grid initial loads, hero placeholders, sectional placeholders) build the load state out of `Skeleton`, `SkeletonText`, `SkeletonPoster`:
-
-```tsx
-import { Skeleton, SkeletonText, SkeletonPoster } from '@/components';
-
-// Plain rectangle (use only when no semantic helper fits)
-<Skeleton width="100%" height={96} borderRadius={t.radii.md} />
-
-// Text line shaped by typography variant — height = lineHeight of that variant
-<SkeletonText variant="bodyStrong" width="70%" />
-<SkeletonText variant="caption" width="35%" />
-
-// Poster shaped to PosterImage's sm/md/lg dimensions exactly
-<SkeletonPoster size="lg" />
-```
-
-Match the **content's containers** too — same padding, gap, borderRadius, background. If a row uses `bg.surface` + `padding: md` + `borderRadius: md`, the skeleton row uses the same. If a chart paddings the section with `paddingHorizontal: lg`, the skeleton does the same. Goal: when the data arrives, **nothing moves**.
-
-When a component has a stable, content-shaped loading variant that more than one screen renders, colocate the skeleton next to the component as a named export (e.g. `BackdropPosterHeaderSkeleton`, `MoviePosterRowSkeleton`). One-off shapes (e.g. a season's episode list) live inline in the screen file.
-
-Quantity: render enough placeholder items to fill the viewport during load — typically **6–8 vertical rows**, **2–3 grid rows × 2 cols**, **6 horizontal carousel items**.
-
----
+Use `Skeleton`, `SkeletonText`, and `SkeletonPoster`. `ActivityIndicator` is only for fixed-surface feedback, such as button loading, or bottom-of-list pagination. Reusable skeleton variants should live next to their component.
 
 ## Recipes
 
-### Adding a new screen
+### New Screen
 
-1. Create `app/<route>.tsx` (or `app/(tabs)/<route>.tsx` for a tab).
-2. Wrap content in `<Screen>` (defaults to `padded` + bottom safe edge).
-3. Use `useTheme()` + shared components for everything visual.
-4. For forms, use `KeyboardAwareScrollView` (see rule 6).
-5. If it's a modal, register it under the root Stack in `app/_layout.tsx` with `presentation: 'modal'`.
+1. Create `app/<route>.tsx` or `app/(tabs)/<route>.tsx`.
+2. Wrap with `Screen`; tab screens use `edges={[]}`.
+3. Use `useTheme()` and shared components.
+4. Forms use `KeyboardAwareScrollView`.
+5. Register modals in the root Stack with `presentation: 'modal'`.
 
-### Adding a new diary field
+### New Diary Field
 
-1. Update `DiaryEntry` + `NewDiaryEntry` types and the `entries` table DDL in `db/diary.ts`. v0 ships no migration helpers — when you change a column, drop and recreate the table during dev (`await db.execAsync('DROP TABLE entries')` once, then let `CREATE TABLE IF NOT EXISTS` re-init). Reset all data via the SettingsSheet if needed.
-2. Update `addEntry` and any read sites.
-3. Surface the field in `app/new-entry.tsx` form and `components/EntryRow.tsx`.
+1. Update `DiaryEntry`, `NewDiaryEntry`, and the `entries` DDL in `db/diary.ts`.
+2. v0 has no migrations; during dev, drop/recreate `entries` or reset data through `SettingsSheet`.
+3. Update `addEntry`, read sites, `app/new-entry.tsx`, and `components/EntryRow.tsx`.
 
-### Adding a token
+### New Token
 
-1. Edit `theme/tokens.ts`. Use semantic naming.
-2. Done — `useTheme()` exposes it automatically.
+Edit `theme/tokens.ts` with a semantic name. `useTheme()` exposes it automatically.
 
-### TMDB calls
+### TMDB
 
-`lib/tmdb.ts` is the only place that talks to TMDB. Add new endpoints as named exports there; never `fetch` TMDB from a screen or component. Use `posterUrl(posterPath, size)` for image URLs.
+Only `lib/tmdb.ts` talks to TMDB. Add endpoints there as named exports and use `posterUrl(posterPath, size)` for image URLs.
 
----
+## Out Of Scope For v0
 
-## What NOT to add in v0 (without asking)
-
-- Auth, user accounts, sync — explicitly deferred.
-- Backend / remote storage — explicitly deferred.
-- Web support — `expo-sqlite`'s web worker doesn't bundle out of the box; mobile-only for now.
-- Rewatch toggle on entries — user explicitly deselected this in v0 spec.
-- Edit/delete entry, entry detail screen — deferred unless asked.
+Ask before adding auth, accounts, sync, backend storage, or rewatch toggles.
