@@ -9,6 +9,7 @@ export type TmdbMovie = {
   year: string | null;
   posterPath: string | null;
   overview: string;
+  popularity: number;
 };
 
 export type GenreRef = { id: number; name: string };
@@ -38,6 +39,7 @@ type TmdbSearchResponse = {
     release_date?: string;
     poster_path: string | null;
     overview: string;
+    popularity?: number;
   }[];
 };
 
@@ -112,6 +114,7 @@ function normalize(raw: TmdbSearchResponse['results'][number]): TmdbMovie {
     year: raw.release_date ? raw.release_date.slice(0, 4) : null,
     posterPath: raw.poster_path,
     overview: raw.overview,
+    popularity: raw.popularity ?? 0,
   };
 }
 

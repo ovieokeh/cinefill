@@ -88,6 +88,10 @@ export default function RootLayout() {
                 name="edit-entry/[id]"
                 options={{ presentation: 'modal', title: 'Edit entry' }}
               />
+              <Stack.Screen
+                name="import-letterboxd"
+                options={{ presentation: 'modal', title: 'Import from Letterboxd' }}
+              />
             </Stack>
             <StatusBar style="light" />
           </ThemeProvider>

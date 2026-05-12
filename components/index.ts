@@ -19,6 +19,8 @@ export { MoviePosterRow, MoviePosterRowSkeleton } from './MoviePosterRow';
 export type { MoviePosterItem } from './MoviePosterRow';
 export { ActionSheet } from './ActionSheet';
 export type { ActionItem, ActionSheetHandle } from './ActionSheet';
+export { SettingsSheet } from './SettingsSheet';
+export type { SettingsSheetHandle } from './SettingsSheet';
 export { Skeleton, SkeletonText, SkeletonPoster } from './Skeleton';
 export { ActivityLineChart } from './ActivityLineChart';
 export { GenreDonut } from './GenreDonut';

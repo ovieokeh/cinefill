@@ -204,3 +204,48 @@ export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
     createdAt,
   };
 }
+
+export async function addEntries(entries: NewDiaryEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+  const db = await getDb();
+  const createdAt = Date.now();
+  await db.withTransactionAsync(async () => {
+    for (const entry of entries) {
+      await db.runAsync(
+        `INSERT INTO entries
+          (tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        entry.tmdbId,
+        entry.mediaType,
+        entry.seasonNumber,
+        entry.seasonName,
+        entry.title,
+        entry.year,
+        entry.posterPath,
+        entry.watchedDate,
+        entry.rating,
+        entry.note,
+        createdAt,
+      );
+    }
+  });
+}
+
+export async function listExistingMovieWatchKeys(
+  tmdbIds: number[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (tmdbIds.length === 0) return out;
+  const db = await getDb();
+  const unique = [...new Set(tmdbIds)];
+  const placeholders = unique.map(() => '?').join(',');
+  const rows = await db.getAllAsync<{ tmdb_id: number; watched_date: string }>(
+    `SELECT tmdb_id, watched_date FROM entries
+     WHERE media_type = 'movie' AND tmdb_id IN (${placeholders})`,
+    ...unique,
+  );
+  for (const r of rows) {
+    out.add(`${r.tmdb_id}|${r.watched_date}`);
+  }
+  return out;
+}

@@ -94,6 +94,25 @@ export async function addToWatchlist(item: NewWatchlistItem): Promise<WatchlistI
   return { ...item, addedAt };
 }
 
+export async function addToWatchlistBatch(items: NewWatchlistItem[]): Promise<void> {
+  if (items.length === 0) return;
+  const db = await getDb();
+  const addedAt = Date.now();
+  await db.withTransactionAsync(async () => {
+    for (const item of items) {
+      await db.runAsync(
+        'INSERT OR REPLACE INTO watchlist (tmdb_id, media_type, title, year, poster_path, added_at) VALUES (?, ?, ?, ?, ?, ?)',
+        item.tmdbId,
+        item.mediaType,
+        item.title,
+        item.year,
+        item.posterPath,
+        addedAt,
+      );
+    }
+  });
+}
+
 export async function removeFromWatchlist(
   tmdbId: number,
   mediaType: WatchlistMediaType,

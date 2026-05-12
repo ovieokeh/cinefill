@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Easing,
   SharedValue,
@@ -18,6 +19,8 @@ import {
   ActivityLineChart,
   GenreDonut,
   SectionTitle,
+  SettingsSheet,
+  type SettingsSheetHandle,
 } from '@/components';
 import { useTheme } from '@/theme';
 import {
@@ -70,6 +73,8 @@ export default function YouScreen() {
   const t = useTheme();
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
+  const settingsRef = useRef<SettingsSheetHandle>(null);
+  const openSettings = useCallback(() => settingsRef.current?.present(), []);
 
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [cache, setCache] = useState<MediaCacheRow[]>([]);
@@ -287,8 +292,9 @@ export default function YouScreen() {
   // ----- empty state -----
   if (entries.length === 0) {
     return (
-      <Screen>
-        <View style={styles.centered}>
+      <Screen padded={false}>
+        <SettingsRow onPress={openSettings} />
+        <View style={[styles.centered, { paddingHorizontal: t.spacing.lg }]}>
           <Text variant="titleLg">No entries yet</Text>
           <Text
             variant="body"
@@ -304,6 +310,7 @@ export default function YouScreen() {
             style={{ marginTop: t.spacing.lg }}
           />
         </View>
+        <SettingsSheet ref={settingsRef} />
       </Screen>
     );
   }
@@ -314,6 +321,7 @@ export default function YouScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
+        <SettingsRow onPress={openSettings} />
         <SummaryCard
           sum={sum}
           watchlistCount={watchlistCount}
@@ -403,11 +411,43 @@ export default function YouScreen() {
           </>
         ) : null}
       </ScrollView>
+      <SettingsSheet ref={settingsRef} />
     </Screen>
   );
 }
 
 // ----- subcomponents -----
+
+function SettingsRow({ onPress }: { onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingHorizontal: t.spacing.lg,
+        paddingTop: t.spacing.sm,
+      }}
+    >
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel="Settings"
+        hitSlop={t.spacing.sm}
+        style={({ pressed }) => ({
+          padding: t.spacing.xs,
+          opacity: pressed ? t.opacity.pressed : 1,
+        })}
+      >
+        <Ionicons
+          name="settings-outline"
+          size={t.spacing.xl}
+          color={t.colors.text.secondary}
+        />
+      </Pressable>
+    </View>
+  );
+}
 
 function useChartProgress(count: number) {
   const progress = useSharedValue(0);
