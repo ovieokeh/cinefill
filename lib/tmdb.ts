@@ -668,29 +668,94 @@ export async function discoverByGenre(
   };
 }
 
-export type MultiSearchResult = {
+export type MovieSearchResult = {
   tmdbId: number;
-  mediaType: 'movie' | 'tv';
+  mediaType: 'movie';
   title: string;
   year: string | null;
   posterPath: string | null;
+  genreIds: number[];
 };
+
+export type TvSearchResult = {
+  tmdbId: number;
+  mediaType: 'tv';
+  title: string;
+  year: string | null;
+  posterPath: string | null;
+  genreIds: number[];
+};
+
+export type PersonSearchResult = {
+  tmdbId: number;
+  mediaType: 'person';
+  name: string;
+  profilePath: string | null;
+  knownFor: string;
+};
+
+export type SearchResult = MovieSearchResult | TvSearchResult | PersonSearchResult;
 
 type RawMultiResult = {
   id: number;
   media_type?: 'movie' | 'tv' | 'person' | string;
   title?: string;
   name?: string;
+  original_title?: string;
+  original_name?: string;
   release_date?: string;
   first_air_date?: string;
   poster_path: string | null;
+  profile_path?: string | null;
+  known_for_department?: string | null;
+  genre_ids?: number[];
 };
 
 type TmdbMultiResponse = {
+  page: number;
+  total_pages: number;
   results: RawMultiResult[];
 };
 
-export async function searchMulti(query: string, signal?: AbortSignal): Promise<MultiSearchResult[]> {
+export type SearchPage = {
+  page: number;
+  totalPages: number;
+  results: SearchResult[];
+};
+
+function normalizeMovieSearch(r: RawMultiResult): MovieSearchResult {
+  return {
+    tmdbId: r.id,
+    mediaType: 'movie',
+    title: r.title ?? r.original_title ?? '',
+    year: r.release_date && r.release_date.length >= 4 ? r.release_date.slice(0, 4) : null,
+    posterPath: r.poster_path,
+    genreIds: r.genre_ids ?? [],
+  };
+}
+
+function normalizeTvSearch(r: RawMultiResult): TvSearchResult {
+  return {
+    tmdbId: r.id,
+    mediaType: 'tv',
+    title: r.name ?? r.original_name ?? '',
+    year: r.first_air_date && r.first_air_date.length >= 4 ? r.first_air_date.slice(0, 4) : null,
+    posterPath: r.poster_path,
+    genreIds: r.genre_ids ?? [],
+  };
+}
+
+function normalizePersonSearch(r: RawMultiResult): PersonSearchResult {
+  return {
+    tmdbId: r.id,
+    mediaType: 'person',
+    name: r.name ?? r.original_name ?? '',
+    profilePath: r.profile_path ?? null,
+    knownFor: r.known_for_department ?? '',
+  };
+}
+
+export async function searchMulti(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
   assertTmdbConfigured();
   const trimmed = query.trim();
   if (!trimmed) return [];
@@ -709,21 +774,49 @@ export async function searchMulti(query: string, signal?: AbortSignal): Promise<
   }
 
   const json = (await res.json()) as TmdbMultiResponse;
-  const out: MultiSearchResult[] = [];
+  const out: SearchResult[] = [];
   for (const r of json.results) {
-    if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
-    const mt = r.media_type;
-    const title = mt === 'movie' ? r.title ?? '' : r.name ?? '';
-    const date = mt === 'movie' ? r.release_date : r.first_air_date;
-    out.push({
-      tmdbId: r.id,
-      mediaType: mt,
-      title,
-      year: date && date.length >= 4 ? date.slice(0, 4) : null,
-      posterPath: r.poster_path,
-    });
+    if (r.media_type === 'movie') out.push(normalizeMovieSearch(r));
+    else if (r.media_type === 'tv') out.push(normalizeTvSearch(r));
+    else if (r.media_type === 'person') out.push(normalizePersonSearch(r));
   }
   return out;
+}
+
+export async function searchByType(
+  query: string,
+  mediaType: 'movie' | 'tv' | 'person',
+  page = 1,
+  signal?: AbortSignal,
+): Promise<SearchPage> {
+  assertTmdbConfigured();
+  const trimmed = query.trim();
+  if (!trimmed) return { page: 1, totalPages: 1, results: [] };
+
+  const url = `${TMDB_BASE}/search/${mediaType}?query=${encodeURIComponent(trimmed)}&include_adult=false&language=en-US&page=${page}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`TMDB search failed: ${res.status} ${res.statusText}`);
+  }
+
+  const json = (await res.json()) as TmdbMultiResponse;
+  const results: SearchResult[] = json.results.map((r) => {
+    if (mediaType === 'movie') return normalizeMovieSearch(r);
+    if (mediaType === 'tv') return normalizeTvSearch(r);
+    return normalizePersonSearch(r);
+  });
+  return {
+    page: json.page,
+    totalPages: Math.min(json.total_pages ?? 1, 500),
+    results,
+  };
 }
 
 export async function searchMovies(query: string, signal?: AbortSignal): Promise<TmdbMovie[]> {
@@ -869,4 +962,176 @@ export async function getMovieDetails(
     flatrateProviders: pickUsFlatrate(raw['watch/providers']),
     recommendations: pickRecommendations(raw.recommendations),
   };
+}
+
+
+// ------- Discovery: trending + popular + genre catalog -------
+
+export async function getGenres(
+  mediaType: 'movie' | 'tv',
+  signal?: AbortSignal,
+): Promise<GenreRef[]> {
+  assertTmdbConfigured();
+  const url = `${TMDB_BASE}/genre/${mediaType}/list?language=en-US`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`TMDB genres failed: ${res.status} ${res.statusText}`);
+  }
+  const json = (await res.json()) as { genres: GenreRef[] };
+  return json.genres ?? [];
+}
+
+type RawTrendingItem = {
+  id: number;
+  media_type?: 'movie' | 'tv' | 'person' | string;
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path: string | null;
+};
+
+type RawListResponse<T> = {
+  page: number;
+  results: T[];
+};
+
+function trendingItemToDiscoverItem(r: RawTrendingItem): DiscoverItem | null {
+  const mt = r.media_type;
+  if (mt !== 'movie' && mt !== 'tv') return null;
+  const title =
+    mt === 'movie' ? r.title ?? r.original_title ?? '' : r.name ?? r.original_name ?? '';
+  const date = mt === 'movie' ? r.release_date : r.first_air_date;
+  return {
+    tmdbId: r.id,
+    mediaType: mt,
+    title,
+    year: date && date.length >= 4 ? date.slice(0, 4) : null,
+    posterPath: r.poster_path,
+  };
+}
+
+export async function getTrending(
+  mediaType: 'all' | 'movie' | 'tv',
+  signal?: AbortSignal,
+): Promise<DiscoverItem[]> {
+  assertTmdbConfigured();
+  const url = `${TMDB_BASE}/trending/${mediaType}/day?language=en-US`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`TMDB trending failed: ${res.status} ${res.statusText}`);
+  }
+  const json = (await res.json()) as RawListResponse<RawTrendingItem>;
+  const out: DiscoverItem[] = [];
+  const force: 'movie' | 'tv' | null = mediaType === 'all' ? null : mediaType;
+  for (const r of json.results) {
+    const effective = force ?? (r.media_type === 'movie' || r.media_type === 'tv' ? r.media_type : null);
+    if (!effective) continue;
+    const item = trendingItemToDiscoverItem({ ...r, media_type: effective });
+    if (item) out.push(item);
+  }
+  return out;
+}
+
+type RawPopularMovie = {
+  id: number;
+  title?: string;
+  original_title?: string;
+  release_date?: string;
+  poster_path: string | null;
+};
+
+type RawPopularTv = {
+  id: number;
+  name?: string;
+  original_name?: string;
+  first_air_date?: string;
+  poster_path: string | null;
+};
+
+type RawPopularPerson = {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  known_for_department: string | null;
+};
+
+export async function getPopularMovies(signal?: AbortSignal): Promise<DiscoverItem[]> {
+  assertTmdbConfigured();
+  const res = await fetch(`${TMDB_BASE}/movie/popular?language=en-US&page=1`, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`TMDB popular movies failed: ${res.status} ${res.statusText}`);
+  }
+  const json = (await res.json()) as RawListResponse<RawPopularMovie>;
+  return json.results.map((r) => ({
+    tmdbId: r.id,
+    mediaType: 'movie' as const,
+    title: r.title ?? r.original_title ?? '',
+    year: r.release_date && r.release_date.length >= 4 ? r.release_date.slice(0, 4) : null,
+    posterPath: r.poster_path,
+  }));
+}
+
+export async function getPopularTv(signal?: AbortSignal): Promise<DiscoverItem[]> {
+  assertTmdbConfigured();
+  const res = await fetch(`${TMDB_BASE}/tv/popular?language=en-US&page=1`, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`TMDB popular tv failed: ${res.status} ${res.statusText}`);
+  }
+  const json = (await res.json()) as RawListResponse<RawPopularTv>;
+  return json.results.map((r) => ({
+    tmdbId: r.id,
+    mediaType: 'tv' as const,
+    title: r.name ?? r.original_name ?? '',
+    year: r.first_air_date && r.first_air_date.length >= 4 ? r.first_air_date.slice(0, 4) : null,
+    posterPath: r.poster_path,
+  }));
+}
+
+export async function getPopularPeople(signal?: AbortSignal): Promise<PersonSearchResult[]> {
+  assertTmdbConfigured();
+  const res = await fetch(`${TMDB_BASE}/person/popular?language=en-US&page=1`, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`TMDB popular people failed: ${res.status} ${res.statusText}`);
+  }
+  const json = (await res.json()) as RawListResponse<RawPopularPerson>;
+  return json.results.map((r) => ({
+    tmdbId: r.id,
+    mediaType: 'person' as const,
+    name: r.name,
+    profilePath: r.profile_path,
+    knownFor: r.known_for_department ?? '',
+  }));
 }

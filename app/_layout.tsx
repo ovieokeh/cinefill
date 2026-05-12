@@ -31,10 +31,6 @@ export default function RootLayout() {
             >
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
-                name="search"
-                options={{ presentation: 'modal', title: 'Search films' }}
-              />
-              <Stack.Screen
                 name="new-entry"
                 options={{
                   presentation: 'modal',
@@ -55,10 +51,6 @@ export default function RootLayout() {
               />
               <Stack.Screen
                 name="person/[id]"
-                options={{ title: '', headerBackTitle: 'Back' }}
-              />
-              <Stack.Screen
-                name="genre/[mediaType]/[id]"
                 options={{ title: '', headerBackTitle: 'Back' }}
               />
               <Stack.Screen

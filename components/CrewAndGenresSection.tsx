@@ -64,8 +64,8 @@ export function CrewAndGenresSection({ keyCrew, genres, mediaType }: Props) {
               key={g.id}
               onPress={() =>
                 router.push({
-                  pathname: '/genre/[mediaType]/[id]',
-                  params: { mediaType, id: String(g.id), name: g.name },
+                  pathname: '/(tabs)/search',
+                  params: { mediaType, genreId: String(g.id), genreName: g.name },
                 })
               }
               style={({ pressed }) => [
