@@ -1,12 +1,21 @@
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  ActionSheetIOS,
+  Alert,
+  Platform,
+} from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedReaction,
   useAnimatedScrollHandler,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 
 import {
@@ -22,7 +31,7 @@ import {
   SimilarMoviesCarousel,
 } from '@/components';
 import { useTheme } from '@/theme';
-import { getEntry, type DiaryEntry } from '@/db/diary';
+import { getEntry, deleteEntry, type DiaryEntry } from '@/db/diary';
 import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
 
 const HERO_COLLAPSE_THRESHOLD = 160;
@@ -60,30 +69,34 @@ export default function EntryDetailScreen() {
     },
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!Number.isFinite(entryId)) {
-      setEntry('missing');
-      return;
-    }
-    (async () => {
-      const row = await getEntry(entryId);
-      if (cancelled) return;
-      setEntry(row ?? 'missing');
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [entryId]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      if (!Number.isFinite(entryId)) {
+        setEntry('missing');
+        return;
+      }
+      (async () => {
+        const row = await getEntry(entryId);
+        if (cancelled) return;
+        setEntry(row ?? 'missing');
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [entryId]),
+  );
+
+  const tmdbId = entry && entry !== 'missing' ? entry.tmdbId : null;
 
   useEffect(() => {
-    if (!entry || entry === 'missing') return;
+    if (tmdbId == null) return;
     const controller = new AbortController();
     setLoadingDetails(true);
     setDetailsError(null);
     (async () => {
       try {
-        const d = await getMovieDetails(entry.tmdbId, controller.signal);
+        const d = await getMovieDetails(tmdbId, controller.signal);
         if (!controller.signal.aborted) setDetails(d);
       } catch (e: unknown) {
         if (controller.signal.aborted) return;
@@ -95,10 +108,59 @@ export default function EntryDetailScreen() {
     return () => {
       controller.abort();
     };
-  }, [entry, retryKey]);
+  }, [tmdbId, retryKey]);
 
   const navTitle =
     showNavTitle && entry && entry !== 'missing' ? entry.title : '';
+
+  const loadedEntry = entry && entry !== 'missing' ? entry : null;
+
+  const doDelete = useCallback(async () => {
+    if (!loadedEntry) return;
+    try {
+      await deleteEntry(loadedEntry.id);
+      router.dismissTo('/');
+    } catch (e) {
+      console.error('Failed to delete entry', e);
+    }
+  }, [loadedEntry, router]);
+
+  const confirmDelete = useCallback(() => {
+    Alert.alert(
+      'Delete entry?',
+      'This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ],
+      { cancelable: true },
+    );
+  }, [doDelete]);
+
+  const openActions = useCallback(() => {
+    if (!loadedEntry) return;
+    const onEdit = () => router.push(`/edit-entry/${loadedEntry.id}`);
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Edit', 'Delete', 'Cancel'],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 2,
+        },
+        (choice) => {
+          if (choice === 0) onEdit();
+          else if (choice === 1) confirmDelete();
+        },
+      );
+    } else {
+      Alert.alert('Entry options', undefined, [
+        { text: 'Edit', onPress: onEdit },
+        { text: 'Delete', style: 'destructive', onPress: confirmDelete },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, [loadedEntry, router, confirmDelete]);
 
   if (entry === 'missing') {
     return (
@@ -145,7 +207,31 @@ export default function EntryDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: navTitle }} />
+      <Stack.Screen
+        options={{
+          title: navTitle,
+          headerRight: () => (
+            <Pressable
+              onPress={openActions}
+              hitSlop={t.spacing.sm}
+              accessibilityLabel="Entry options"
+              accessibilityRole="button"
+              style={{
+                paddingHorizontal: t.spacing.sm,
+                paddingVertical: t.spacing.sm,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={t.spacing.xl}
+                color={t.colors.accent.base}
+              />
+            </Pressable>
+          ),
+        }}
+      />
       <Screen padded={false}>
         <Animated.ScrollView
           onScroll={scrollHandler}

@@ -39,6 +39,10 @@ export default function RootLayout() {
               name="entry/[id]"
               options={{ title: '', headerBackTitle: 'Diary' }}
             />
+            <Stack.Screen
+              name="edit-entry/[id]"
+              options={{ presentation: 'modal', title: 'Edit entry' }}
+            />
           </Stack>
           <StatusBar style="light" />
         </ThemeProvider>

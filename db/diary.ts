@@ -84,6 +84,25 @@ export async function listEntries(): Promise<DiaryEntry[]> {
   return rows.map(rowToEntry);
 }
 
+export async function updateEntry(
+  id: number,
+  patch: Pick<DiaryEntry, 'watchedDate' | 'rating' | 'note'>,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE entries SET watched_date = ?, rating = ?, note = ? WHERE id = ?',
+    patch.watchedDate,
+    patch.rating,
+    patch.note,
+    id,
+  );
+}
+
+export async function deleteEntry(id: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM entries WHERE id = ?', id);
+}
+
 export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
   const db = await getDb();
   const createdAt = Date.now();
