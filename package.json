@@ -10,7 +10,11 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:dev:ios": "eas build --profile development --platform ios",
+    "build:preview:ios": "eas build --profile preview --platform ios",
+    "build:ios": "eas build --profile production --platform ios",
+    "submit:ios": "eas submit --profile production --platform ios --latest"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
