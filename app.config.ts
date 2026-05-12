@@ -1,4 +1,4 @@
-import { ExpoConfig, ConfigContext } from 'expo/config';
+import { ConfigContext, ExpoConfig } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -51,5 +51,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     tmdbReadToken: process.env.TMDB_API_READ_ACCESS_TOKEN,
     tmdbApiKey: process.env.TMDB_API_KEY,
+    eas: {
+      "projectId": "ac6c7d5c-d2f2-45e2-ab34-2e826acd128d"
+    }
   },
 });

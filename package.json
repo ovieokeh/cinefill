@@ -14,7 +14,10 @@
     "build:dev:ios": "eas build --profile development --platform ios",
     "build:preview:ios": "eas build --profile preview --platform ios",
     "build:ios": "eas build --profile production --platform ios",
-    "submit:ios": "eas submit --profile production --platform ios --latest"
+    "build:ios:local": "eas build --profile production --platform ios --local",
+    "build:preview:ios:local": "eas build --profile preview --platform ios --local",
+    "submit:ios": "eas submit --profile production --platform ios --latest",
+    "submit:ios:local": "eas submit --profile production --platform ios --path"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
