@@ -11,13 +11,15 @@ export type TmdbMovie = {
   overview: string;
 };
 
+export type GenreRef = { id: number; name: string };
+
 export type MovieDetails = {
   tmdbId: number;
   title: string;
   tagline: string;
   overview: string;
   runtime: number | null;
-  genres: string[];
+  genres: GenreRef[];
   backdropPath: string | null;
   posterPath: string | null;
   director: string | null;
@@ -278,7 +280,7 @@ export type TvDetails = {
   overview: string;
   episodeRuntime: number | null;
   yearRange: string | null;
-  genres: string[];
+  genres: GenreRef[];
   backdropPath: string | null;
   posterPath: string | null;
   creators: string | null;
@@ -474,7 +476,7 @@ export async function getTvDetails(tvId: number, signal?: AbortSignal): Promise<
     overview: raw.overview ?? '',
     episodeRuntime: raw.episode_run_time && raw.episode_run_time.length > 0 ? raw.episode_run_time[0] : null,
     yearRange: pickTvYearRange(raw.first_air_date, raw.last_air_date, raw.status),
-    genres: (raw.genres ?? []).map((g) => g.name),
+    genres: raw.genres ?? [],
     backdropPath: raw.backdrop_path,
     posterPath: raw.poster_path,
     creators,
@@ -588,6 +590,81 @@ export async function getPersonDetails(
     profilePath: raw.profile_path,
     knownForDepartment: raw.known_for_department ?? '',
     credits: normalizePersonCredits(raw.combined_credits),
+  };
+}
+
+export type DiscoverItem = {
+  tmdbId: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  year: string | null;
+  posterPath: string | null;
+};
+
+export type DiscoverPage = {
+  page: number;
+  totalPages: number;
+  results: DiscoverItem[];
+};
+
+type RawDiscoverResult = {
+  id: number;
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path: string | null;
+};
+
+type RawDiscoverResponse = {
+  page: number;
+  total_pages: number;
+  results: RawDiscoverResult[];
+};
+
+export async function discoverByGenre(
+  mediaType: 'movie' | 'tv',
+  genreId: number,
+  page: number,
+  signal?: AbortSignal,
+): Promise<DiscoverPage> {
+  assertTmdbConfigured();
+  const url = `${TMDB_BASE}/discover/${mediaType}?with_genres=${encodeURIComponent(
+    String(genreId),
+  )}&sort_by=popularity.desc&include_adult=false&language=en-US&page=${page}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`TMDB discover failed: ${res.status} ${res.statusText}`);
+  }
+
+  const json = (await res.json()) as RawDiscoverResponse;
+  const results: DiscoverItem[] = json.results.map((r) => {
+    const title =
+      mediaType === 'movie'
+        ? r.title ?? r.original_title ?? ''
+        : r.name ?? r.original_name ?? '';
+    const date = mediaType === 'movie' ? r.release_date : r.first_air_date;
+    return {
+      tmdbId: r.id,
+      mediaType,
+      title,
+      year: date && date.length >= 4 ? date.slice(0, 4) : null,
+      posterPath: r.poster_path,
+    };
+  });
+  return {
+    page: json.page,
+    totalPages: Math.min(json.total_pages ?? 1, 500),
+    results,
   };
 }
 
@@ -781,7 +858,7 @@ export async function getMovieDetails(
     tagline: raw.tagline ?? '',
     overview: raw.overview ?? '',
     runtime: raw.runtime ?? null,
-    genres: (raw.genres ?? []).map((g) => g.name),
+    genres: raw.genres ?? [],
     backdropPath: raw.backdrop_path,
     posterPath: raw.poster_path,
     director: pickDirector(raw.credits?.crew),

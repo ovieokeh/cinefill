@@ -7,12 +7,15 @@ import { Text } from './Text';
 
 const ROLE_COL_WIDTH = 140;
 
+type GenreEntry = { id: number; name: string };
+
 type Props = {
   keyCrew: MovieDetails['keyCrew'];
-  genres: string[];
+  genres: GenreEntry[];
+  mediaType: 'movie' | 'tv';
 };
 
-export function CrewAndGenresSection({ keyCrew, genres }: Props) {
+export function CrewAndGenresSection({ keyCrew, genres, mediaType }: Props) {
   const t = useTheme();
   const router = useRouter();
   if (keyCrew.length === 0 && genres.length === 0) return null;
@@ -57,19 +60,28 @@ export function CrewAndGenresSection({ keyCrew, genres }: Props) {
       {genres.length > 0 ? (
         <View style={[styles.chips, { marginTop: keyCrew.length > 0 ? t.spacing.lg : 0, gap: t.spacing.sm }]}>
           {genres.map((g) => (
-            <View
-              key={g}
-              style={{
-                backgroundColor: t.colors.bg.elevated,
-                borderRadius: t.radii.pill,
-                paddingHorizontal: t.spacing.md,
-                paddingVertical: t.spacing.xs,
-              }}
+            <Pressable
+              key={g.id}
+              onPress={() =>
+                router.push({
+                  pathname: '/genre/[mediaType]/[id]',
+                  params: { mediaType, id: String(g.id), name: g.name },
+                })
+              }
+              style={({ pressed }) => [
+                {
+                  backgroundColor: t.colors.bg.elevated,
+                  borderRadius: t.radii.pill,
+                  paddingHorizontal: t.spacing.md,
+                  paddingVertical: t.spacing.xs,
+                  opacity: pressed ? t.opacity.pressed : 1,
+                },
+              ]}
             >
               <Text variant="caption" tone="secondary">
-                {g}
+                {g.name}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}

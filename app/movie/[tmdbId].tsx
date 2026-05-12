@@ -280,7 +280,7 @@ export default function MovieScreen() {
               title={heroTitle}
               year={heroYear}
               runtime={details?.runtime ?? null}
-              genres={details?.genres ?? []}
+              genres={(details?.genres ?? []).map((g) => g.name)}
               byline={details?.director ? `Directed by ${details.director}` : null}
               certification={details?.certification ?? null}
               scrollY={scrollY}
@@ -329,7 +329,7 @@ export default function MovieScreen() {
               {details.keyCrew.length > 0 || details.genres.length > 0 ? (
                 <>
                   <SectionTitle title="Crew & Genres" />
-                  <CrewAndGenresSection keyCrew={details.keyCrew} genres={details.genres} />
+                  <CrewAndGenresSection keyCrew={details.keyCrew} genres={details.genres} mediaType="movie" />
                 </>
               ) : null}
 
