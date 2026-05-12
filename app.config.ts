@@ -13,6 +13,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: "com.nerdylegs.cinefill",
     supportsTablet: true,
+    config: {
+      // ITSAppUsesNonExemptEncryption = false: cinefill only uses standard
+      // exempt encryption (HTTPS, OS-level keystore). Declares once so App
+      // Store Connect skips the export-compliance prompt on every upload.
+      usesNonExemptEncryption: false,
+    },
   },
   android: {
     package: "com.nerdylegs.cinefill",

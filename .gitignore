@@ -43,3 +43,12 @@ app-example
 /ios
 /android
 assets/letterboxd-export.zip
+
+# build artifacts
+*.ipa
+*.apk
+*.aab
+*.aar
+*.apk
+*.aab
+*.aar
