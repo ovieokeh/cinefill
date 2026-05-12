@@ -102,6 +102,8 @@ If you need a variant of one of these, add a prop. Don't write a parallel compon
 
 Every route in this app sits inside a navigator (Stack/Tabs) whose header already absorbs the top safe-area inset. `Screen` defaults to `edges={['bottom']}` for that reason — **do not** re-add `'top'` unless the screen has no nav header (custom splash, etc.). Symptom of getting this wrong: a huge empty gap below the nav header.
 
+The bottom inset has the same trap in reverse: routes under `app/(tabs)/*` are wrapped by a bottom tab bar that already absorbs the home-indicator inset. Pass `edges={[]}` on those screens so the inset isn't counted twice. Symptom of getting this wrong: a persistent ~24–34 px blank strip right above the tab bar on every tab. Non-tab screens (Stack pushes like `/movie/[id]`, modals) keep the default `['bottom']` because the tab bar isn't between them and the home indicator.
+
 ### 4. Fabric a11y values must be integers
 
 The New Architecture coerces `accessibilityValue.{min,max,now}` to C `long long`. Passing a float crashes at render with `Exception in HostFunction: Loss of precision during arithmetic conversion`. Scale fractional values into ints and use `text` for the human-readable label:
@@ -188,7 +190,7 @@ Quantity: render enough placeholder items to fill the viewport during load — t
 
 ### Adding a new diary field
 
-1. Update `DiaryEntry` + `NewDiaryEntry` types and the `entries` table DDL in `db/diary.ts`. Add a migration if the table already exists in dev (drop and recreate is acceptable in v0 — `await db.execAsync('DROP TABLE entries')`).
+1. Update `DiaryEntry` + `NewDiaryEntry` types and the `entries` table DDL in `db/diary.ts`. v0 ships no migration helpers — when you change a column, drop and recreate the table during dev (`await db.execAsync('DROP TABLE entries')` once, then let `CREATE TABLE IF NOT EXISTS` re-init). Reset all data via the SettingsSheet if needed.
 2. Update `addEntry` and any read sites.
 3. Surface the field in `app/new-entry.tsx` form and `components/EntryRow.tsx`.
 

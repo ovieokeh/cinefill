@@ -301,7 +301,7 @@ export default function YouScreen() {
   // ----- empty state -----
   if (entries.length === 0) {
     return (
-      <Screen padded={false}>
+      <Screen padded={false} edges={[]}>
         <SettingsRow onPress={openSettings} />
         <View style={[styles.centered, { paddingHorizontal: t.spacing.lg }]}>
           <Text variant="titleLg">No entries yet</Text>
@@ -310,13 +310,19 @@ export default function YouScreen() {
             tone="muted"
             style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
           >
-            Log a film or show and your stats will appear here.
+            Log a film or show and your stats will appear here, or bring your history over from Letterboxd.
           </Text>
           <Button
             title="Search films"
             variant="ghost"
             onPress={() => router.push('/(tabs)/search')}
             style={{ marginTop: t.spacing.lg }}
+          />
+          <Button
+            title="Import from Letterboxd"
+            variant="ghost"
+            onPress={() => router.push('/import-letterboxd')}
+            style={{ marginTop: t.spacing.sm }}
           />
         </View>
         <SettingsSheet ref={settingsRef} />
@@ -328,7 +334,7 @@ export default function YouScreen() {
   const backfilling = backfillRemaining > 0;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
         <SettingsRow onPress={openSettings} />
         <TasteCard

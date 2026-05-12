@@ -22,7 +22,6 @@ export type NewDiaryEntry = Omit<DiaryEntry, 'id' | 'createdAt'>;
 
 function getDb(): Promise<SQLite.SQLiteDatabase> {
   return ensureSchema('diary', async (db) => {
-    // Base table — created on a fresh install with the full schema.
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,26 +37,6 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
         note TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL
       );
-    `);
-
-    // Migrate older databases that pre-date media_type / season columns.
-    const cols = await db.getAllAsync<{ name: string }>(
-      'PRAGMA table_info(entries)',
-    );
-    const has = (n: string) => cols.some((c) => c.name === n);
-    if (!has('media_type')) {
-      await db.execAsync(
-        "ALTER TABLE entries ADD COLUMN media_type TEXT NOT NULL DEFAULT 'movie';",
-      );
-    }
-    if (!has('season_number')) {
-      await db.execAsync('ALTER TABLE entries ADD COLUMN season_number INTEGER;');
-    }
-    if (!has('season_name')) {
-      await db.execAsync('ALTER TABLE entries ADD COLUMN season_name TEXT;');
-    }
-
-    await db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_entries_watched_date ON entries(watched_date DESC);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_tv_season_uniq
         ON entries(tmdb_id, season_number)
@@ -236,57 +215,6 @@ export async function deleteAllEntries(): Promise<number> {
   const db = await getDb();
   const result = await db.runAsync(`DELETE FROM entries`);
   return result.changes ?? 0;
-}
-
-/**
- * Collapse movie entries that share `(tmdb_id, watched_date)` down to a single row.
- * Used to repair imports that emitted both a no-note diary row and a with-note review row
- * for the same film+date. Keep rule (per group): longest `note` wins; tiebreak by higher
- * `rating`; tiebreak by lower `id` (oldest). Returns the number of rows removed.
- */
-export async function dedupeMovieEntries(): Promise<{ deleted: number }> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<{
-    id: number;
-    tmdb_id: number;
-    watched_date: string;
-    note: string;
-    rating: number;
-  }>(
-    `SELECT id, tmdb_id, watched_date, note, rating
-     FROM entries
-     WHERE media_type = 'movie'
-     ORDER BY id ASC`,
-  );
-  const groups = new Map<string, typeof rows>();
-  for (const r of rows) {
-    const k = `${r.tmdb_id}|${r.watched_date}`;
-    const list = groups.get(k);
-    if (list) list.push(r);
-    else groups.set(k, [r]);
-  }
-  const toDelete: number[] = [];
-  for (const list of groups.values()) {
-    if (list.length <= 1) continue;
-    list.sort((a, b) => {
-      const lenDiff = (b.note?.length ?? 0) - (a.note?.length ?? 0);
-      if (lenDiff !== 0) return lenDiff;
-      const ratingDiff = b.rating - a.rating;
-      if (ratingDiff !== 0) return ratingDiff;
-      return a.id - b.id;
-    });
-    for (let i = 1; i < list.length; i++) toDelete.push(list[i].id);
-  }
-  if (toDelete.length === 0) return { deleted: 0 };
-  await db.withTransactionAsync(async () => {
-    const CHUNK = 100;
-    for (let i = 0; i < toDelete.length; i += CHUNK) {
-      const chunk = toDelete.slice(i, i + CHUNK);
-      const placeholders = chunk.map(() => '?').join(',');
-      await db.runAsync(`DELETE FROM entries WHERE id IN (${placeholders})`, ...chunk);
-    }
-  });
-  return { deleted: toDelete.length };
 }
 
 export async function listExistingMovieWatchKeys(

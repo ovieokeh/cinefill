@@ -29,22 +29,13 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
         genre_ids TEXT NOT NULL,
         runtime INTEGER,
         director TEXT,
+        director_ids TEXT,
+        seasons_json TEXT,
+        popularity REAL,
         fetched_at INTEGER NOT NULL,
         PRIMARY KEY (tmdb_id, media_type)
       );
     `);
-    const cols = await db.getAllAsync<{ name: string }>(
-      `PRAGMA table_info(media_cache)`,
-    );
-    if (!cols.some((c) => c.name === 'seasons_json')) {
-      await db.execAsync(`ALTER TABLE media_cache ADD COLUMN seasons_json TEXT`);
-    }
-    if (!cols.some((c) => c.name === 'popularity')) {
-      await db.execAsync(`ALTER TABLE media_cache ADD COLUMN popularity REAL`);
-    }
-    if (!cols.some((c) => c.name === 'director_ids')) {
-      await db.execAsync(`ALTER TABLE media_cache ADD COLUMN director_ids TEXT`);
-    }
   });
 }
 

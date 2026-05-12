@@ -104,7 +104,7 @@ export default function SearchTabScreen() {
   const hasQuery = trimmedQuery.length > 0;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <View
         style={{
           paddingHorizontal: t.spacing.lg,

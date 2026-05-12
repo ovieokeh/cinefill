@@ -21,6 +21,8 @@ export function SortChip<K extends string>({
 }) {
   const sheetRef = useRef<ActionSheetHandle>(null);
   const current = options.find((o) => o.key === value);
+  // First option is the implicit default; any other choice reads as "active".
+  const isDefault = options[0]?.key === value;
 
   function openPicker() {
     const actions: ActionItem[] = options.map((o) => ({
@@ -35,6 +37,7 @@ export function SortChip<K extends string>({
       <Chip
         label={current?.label ?? 'Sort'}
         iconName="swap-vertical"
+        active={!isDefault}
         onPress={openPicker}
         accessibilityLabel={current ? `Sort by ${current.label}` : 'Sort'}
       />

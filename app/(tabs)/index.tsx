@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Screen,
   Text,
+  Button,
   EntryRow,
   FilterBar,
   MediaTypeChips,
@@ -150,7 +151,7 @@ export default function DiaryScreen() {
   const filteredOut = totalEntries > 0 && sorted.length === 0;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       {totalEntries > 0 ? (
         <FilterBar
           filters={
@@ -280,8 +281,14 @@ export default function DiaryScreen() {
                 No entries yet
               </Text>
               <Text variant="body" tone="muted" style={{ marginTop: t.spacing.xs, textAlign: 'center' }}>
-                Log a film you watched recently.
+                Log a film you watched recently, or bring your history over from Letterboxd.
               </Text>
+              <Button
+                title="Import from Letterboxd"
+                variant="ghost"
+                onPress={() => router.push('/import-letterboxd')}
+                style={{ marginTop: t.spacing.lg }}
+              />
             </View>
           )
         }

@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
 import { Text } from './Text';
-import { dedupeMovieEntries, deleteAllEntries } from '@/db/diary';
+import { deleteAllEntries } from '@/db/diary';
 import { deleteAllWatchlist } from '@/db/watchlist';
 import { deleteAllStandouts } from '@/db/standouts';
 import { useFilmContext } from '@/lib/film-context';
@@ -52,27 +52,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
   const handleImport = () => {
     modalRef.current?.dismiss();
     requestAnimationFrame(() => router.push('/import-letterboxd'));
-  };
-
-  const handleCleanup = () => {
-    modalRef.current?.dismiss();
-    requestAnimationFrame(async () => {
-      try {
-        const { deleted } = await dedupeMovieEntries();
-        await refresh();
-        if (deleted === 0) {
-          Alert.alert('All clean', 'No duplicate movie logs were found.');
-        } else {
-          Alert.alert(
-            'Cleaned up',
-            `Removed ${deleted} duplicate diary ${deleted === 1 ? 'entry' : 'entries'}.`,
-          );
-        }
-      } catch (err) {
-        console.warn('dedupeMovieEntries failed', err);
-        Alert.alert('Cleanup failed', 'Please try again.');
-      }
-    });
   };
 
   const handleReset = () => {
@@ -172,33 +151,6 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
             size={t.spacing.lg}
             color={t.colors.text.muted}
           />
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Clean up duplicate diary entries"
-          onPress={handleCleanup}
-          style={({ pressed }) => [
-            styles.row,
-            {
-              paddingHorizontal: t.spacing.lg,
-              paddingVertical: t.spacing.md,
-              gap: t.spacing.md,
-              backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
-            },
-          ]}
-        >
-          <Ionicons
-            name="sparkles-outline"
-            size={t.spacing.xl}
-            color={t.colors.text.primary}
-          />
-          <View style={styles.flex1}>
-            <Text variant="body">Clean up duplicate logs</Text>
-            <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
-              Merge any duplicate diary entries left by older imports. Keeps the row with the review.
-            </Text>
-          </View>
         </Pressable>
 
         <Pressable

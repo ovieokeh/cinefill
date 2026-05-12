@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Screen,
   Text,
+  Button,
   WatchlistRow,
   FilterBar,
   MediaTypeChips,
@@ -149,7 +150,7 @@ export default function WatchlistScreen() {
   const filteredOut = totalItems > 0 && sorted.length === 0;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       {totalItems > 0 ? (
         <FilterBar
           filters={
@@ -276,8 +277,14 @@ export default function WatchlistScreen() {
                 tone="muted"
                 style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
               >
-                Search to find films and save them for later.
+                Search to find films and save them for later, or bring your watchlist over from Letterboxd.
               </Text>
+              <Button
+                title="Import from Letterboxd"
+                variant="ghost"
+                onPress={() => router.push('/import-letterboxd')}
+                style={{ marginTop: t.spacing.lg }}
+              />
             </View>
           )
         }

@@ -17,8 +17,8 @@ export function getConnection(): Promise<SQLite.SQLiteDatabase> {
 }
 
 // Per-table schema-init promise cache. Each table-owning module passes a
-// unique key plus an idempotent init function (CREATE TABLE IF NOT EXISTS +
-// any PRAGMA-introspection migrations). The init runs at most once per process.
+// unique key plus an idempotent init function (CREATE TABLE IF NOT EXISTS).
+// The init runs at most once per process.
 const schemaPromises = new Map<string, Promise<SQLite.SQLiteDatabase>>();
 
 export function ensureSchema(

@@ -1,36 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
+import { Stack, useRouter } from 'expo-router';
 import JSZip from 'jszip';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Screen, Text, Button, SectionTitle } from '@/components';
-import { useTheme } from '@/theme';
+import { Button, Screen, SectionTitle, Text } from '@/components';
 import {
-  parseDiaryCsv,
-  parseReviewsCsv,
-  parseWatchedCsv,
-  parseWatchlistCsv,
-} from '@/lib/letterboxd-csv';
-import {
-  buildParsedExport,
-  collectMatchTargets,
-  matchTargets,
-  assembleInserts,
-  type ParsedExport,
-  type MatchResult,
-  type MatchTarget,
-} from '@/lib/letterboxd-import';
-import { searchMovies } from '@/lib/tmdb';
-import {
-  addEntries,
-  listExistingMovieWatchKeys,
-  type NewDiaryEntry,
+    addEntries,
+    listExistingMovieWatchKeys,
+    type NewDiaryEntry,
 } from '@/db/diary';
 import { addToWatchlistBatch, type NewWatchlistItem } from '@/db/watchlist';
-import { haptic } from '@/lib/haptics';
 import { useFilmContext } from '@/lib/film-context';
+import { haptic } from '@/lib/haptics';
+import {
+    parseDiaryCsv,
+    parseReviewsCsv,
+    parseWatchedCsv,
+    parseWatchlistCsv,
+} from '@/lib/letterboxd-csv';
+import {
+    assembleInserts,
+    buildParsedExport,
+    collectMatchTargets,
+    matchTargets,
+    type MatchResult,
+    type MatchTarget,
+    type ParsedExport,
+} from '@/lib/letterboxd-import';
+import { searchMovies } from '@/lib/tmdb';
+import { useTheme } from '@/theme';
 
 const CONCURRENCY = 6;
 const UNMATCHED_PREVIEW_LIMIT = 5;
@@ -320,7 +320,18 @@ function IdleView({ onPick }: { onPick: () => void }) {
         tone="muted"
         style={{ marginTop: t.spacing.lg }}
       >
-        Get your export at letterboxd.com/settings/data.
+        Get your export at{' '}
+        <Text
+          variant="caption"
+          tone="accent"
+          accessibilityRole="link"
+          accessibilityLabel="Open letterboxd.com/settings/data"
+          onPress={() => Linking.openURL('https://letterboxd.com/settings/data')}
+          style={styles.link}
+        >
+          letterboxd.com/settings/data
+        </Text>
+        .
       </Text>
     </View>
   );
@@ -585,4 +596,5 @@ const styles = StyleSheet.create({
   barTrack: { width: '100%', overflow: 'hidden' },
   statRow: { flexDirection: 'row', alignItems: 'center' },
   flex1: { flex: 1, minWidth: 0 },
+  link: {  },
 });
