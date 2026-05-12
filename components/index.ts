@@ -14,3 +14,5 @@ export { WatchProviders } from './WatchProviders';
 export { CrewAndGenresSection } from './CrewAndGenresSection';
 export { SimilarMoviesCarousel } from './SimilarMoviesCarousel';
 export { CertificationBadge } from './CertificationBadge';
+export { ActionSheet } from './ActionSheet';
+export type { ActionItem, ActionSheetHandle } from './ActionSheet';

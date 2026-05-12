@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
   ActivityIndicator,
   Pressable,
-  ActionSheetIOS,
   Alert,
-  Platform,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -29,6 +27,8 @@ import {
   WatchProviders,
   CrewAndGenresSection,
   SimilarMoviesCarousel,
+  ActionSheet,
+  type ActionSheetHandle,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getEntry, deleteEntry, type DiaryEntry } from '@/db/diary';
@@ -114,6 +114,7 @@ export default function EntryDetailScreen() {
     showNavTitle && entry && entry !== 'missing' ? entry.title : '';
 
   const loadedEntry = entry && entry !== 'missing' ? entry : null;
+  const actionSheetRef = useRef<ActionSheetHandle>(null);
 
   const doDelete = useCallback(async () => {
     if (!loadedEntry) return;
@@ -139,27 +140,19 @@ export default function EntryDetailScreen() {
 
   const openActions = useCallback(() => {
     if (!loadedEntry) return;
-    const onEdit = () => router.push(`/edit-entry/${loadedEntry.id}`);
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Edit', 'Delete', 'Cancel'],
-          destructiveButtonIndex: 1,
-          cancelButtonIndex: 2,
-        },
-        (choice) => {
-          if (choice === 0) onEdit();
-          else if (choice === 1) confirmDelete();
-        },
-      );
-    } else {
-      Alert.alert('Entry options', undefined, [
-        { text: 'Edit', onPress: onEdit },
-        { text: 'Delete', style: 'destructive', onPress: confirmDelete },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    }
+    actionSheetRef.current?.present([
+      {
+        label: 'Edit entry',
+        icon: 'pencil',
+        onPress: () => router.push(`/edit-entry/${loadedEntry.id}`),
+      },
+      {
+        label: 'Delete entry',
+        icon: 'trash-outline',
+        destructive: true,
+        onPress: confirmDelete,
+      },
+    ]);
   }, [loadedEntry, router, confirmDelete]);
 
   if (entry === 'missing') {
@@ -321,6 +314,7 @@ export default function EntryDetailScreen() {
           ) : null}
         </Animated.ScrollView>
       </Screen>
+      <ActionSheet ref={actionSheetRef} />
     </>
   );
 }
