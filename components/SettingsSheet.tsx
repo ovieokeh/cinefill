@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme';
 import { Text } from './Text';
+import { Wordmark } from './Wordmark';
 import { deleteAllEntries } from '@/db/diary';
 import { deleteAllWatchlist } from '@/db/watchlist';
 import { deleteAllStandouts } from '@/db/standouts';
@@ -105,20 +106,13 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
       >
         <View
           style={{
+            alignItems: 'center',
             paddingHorizontal: t.spacing.lg,
-            paddingVertical: t.spacing.sm,
+            paddingTop: t.spacing.sm,
+            paddingBottom: t.spacing.md,
           }}
         >
-          <Text
-            variant="label"
-            tone="muted"
-            style={{
-              textTransform: 'uppercase',
-              letterSpacing: t.tracking.label,
-            }}
-          >
-            Settings
-          </Text>
+          <Wordmark width={112} />
         </View>
 
         <Pressable

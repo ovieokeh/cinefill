@@ -28,6 +28,7 @@ export { ActivityLineChart } from './ActivityLineChart';
 export { GenreDonut } from './GenreDonut';
 export { TasteCard } from './TasteCard';
 export { FilmBadge } from './FilmBadge';
+export { Wordmark } from './Wordmark';
 export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 export { MediaTypeChips } from './MediaTypeChips';

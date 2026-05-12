@@ -21,6 +21,7 @@ import {
   SectionEyebrow,
   SettingsSheet,
   TasteCard,
+  Wordmark,
   type SettingsSheetHandle,
 } from '@/components';
 import { useTheme } from '@/theme';
@@ -438,11 +439,13 @@ function SettingsRow({ onPress }: { onPress: () => void }) {
     <View
       style={{
         flexDirection: 'row',
-        justifyContent: 'flex-end',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: t.spacing.lg,
         paddingTop: t.spacing.sm,
       }}
     >
+      <Wordmark width={96} />
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
