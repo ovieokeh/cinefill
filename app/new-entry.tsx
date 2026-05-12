@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Screen, Text, Input, Button, PosterImage, StarRating, DateField } from '@/components';
 import { useTheme } from '@/theme';
 import { searchMovies, type TmdbMovie } from '@/lib/tmdb';
 import { addEntry } from '@/db/diary';
+import { isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 
 function todayIso(): string {
   const d = new Date();
@@ -26,7 +27,26 @@ export default function NewEntryScreen() {
   const t = useTheme();
   const router = useRouter();
 
-  const [picked, setPicked] = useState<TmdbMovie | null>(null);
+  const params = useLocalSearchParams<{
+    tmdbId?: string;
+    title?: string;
+    year?: string;
+    posterPath?: string;
+  }>();
+  const seededFilm: TmdbMovie | null = (() => {
+    const tmdbIdNum = Number(params.tmdbId);
+    if (!Number.isFinite(tmdbIdNum) || !params.title) return null;
+    return {
+      tmdbId: tmdbIdNum,
+      title: params.title,
+      year: params.year && params.year.length > 0 ? params.year : null,
+      posterPath: params.posterPath && params.posterPath.length > 0 ? params.posterPath : null,
+      overview: '',
+    };
+  })();
+  const filmIsLocked = seededFilm !== null;
+
+  const [picked, setPicked] = useState<TmdbMovie | null>(seededFilm);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TmdbMovie[]>([]);
   const [searching, setSearching] = useState(false);
@@ -87,6 +107,9 @@ export default function NewEntryScreen() {
         rating,
         note: note.trim(),
       });
+      if (await isInWatchlist(picked.tmdbId)) {
+        await removeFromWatchlist(picked.tmdbId);
+      }
       router.back();
     } catch (e) {
       setSaving(false);
@@ -192,18 +215,20 @@ export default function NewEntryScreen() {
                   {picked.year}
                 </Text>
               ) : null}
-              <Pressable
-                onPress={() => {
-                  setPicked(null);
-                  setRating(0);
-                  setNote('');
-                }}
-                hitSlop={t.spacing.sm}
-              >
-                <Text variant="label" tone="accent" style={{ marginTop: t.spacing.sm }}>
-                  Change film
-                </Text>
-              </Pressable>
+              {filmIsLocked ? null : (
+                <Pressable
+                  onPress={() => {
+                    setPicked(null);
+                    setRating(0);
+                    setNote('');
+                  }}
+                  hitSlop={t.spacing.sm}
+                >
+                  <Text variant="label" tone="accent" style={{ marginTop: t.spacing.sm }}>
+                    Change film
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </View>
 

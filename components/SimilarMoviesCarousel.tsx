@@ -1,4 +1,5 @@
-import { FlatList, View, StyleSheet } from 'react-native';
+import { FlatList, View, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import type { MovieDetails } from '@/lib/tmdb';
 import { PosterImage } from './PosterImage';
@@ -29,8 +30,25 @@ export function SimilarMoviesCarousel({
 
 function SimilarItem({ item }: { item: Item }) {
   const t = useTheme();
+  const router = useRouter();
   return (
-    <View style={[styles.item, { width: ITEM_WIDTH }]}>
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: '/movie/[tmdbId]',
+          params: {
+            tmdbId: String(item.tmdbId),
+            title: item.title,
+            year: item.year ?? '',
+            posterPath: item.posterPath ?? '',
+          },
+        })
+      }
+      style={({ pressed }) => [
+        styles.item,
+        { width: ITEM_WIDTH, opacity: pressed ? t.opacity.pressed : 1 },
+      ]}
+    >
       <PosterImage posterPath={item.posterPath} size="md" />
       <Text
         variant="caption"
@@ -44,7 +62,7 @@ function SimilarItem({ item }: { item: Item }) {
           {item.year}
         </Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 

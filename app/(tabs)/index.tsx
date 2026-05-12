@@ -94,7 +94,7 @@ export default function DiaryScreen() {
             </View>
           ) : (
             <Pressable
-              onPress={() => router.push(`/entry/${item.entry.id}`)}
+              onPress={() => router.push(`/movie/${item.entry.tmdbId}`)}
               style={({ pressed }) => ({
                 backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
               })}

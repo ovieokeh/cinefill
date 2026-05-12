@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { FlatList, View, StyleSheet, RefreshControl } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { FlatList, View, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen, Text, WatchlistRow } from '@/components';
@@ -9,6 +9,7 @@ import { listWatchlist, type WatchlistItem } from '@/db/watchlist';
 
 export default function WatchlistScreen() {
   const t = useTheme();
+  const router = useRouter();
   const [items, setItems] = useState<WatchlistItem[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -38,7 +39,16 @@ export default function WatchlistScreen() {
         data={items ?? []}
         keyExtractor={(m) => String(m.tmdbId)}
         contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
-        renderItem={({ item }) => <WatchlistRow item={item} />}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => router.push(`/movie/${item.tmdbId}`)}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
+            })}
+          >
+            <WatchlistRow item={item} />
+          </Pressable>
+        )}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

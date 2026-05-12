@@ -38,8 +38,8 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="entry/[id]"
-                options={{ title: '', headerBackTitle: 'Diary' }}
+                name="movie/[tmdbId]"
+                options={{ title: '', headerBackTitle: 'Back' }}
               />
               <Stack.Screen
                 name="edit-entry/[id]"

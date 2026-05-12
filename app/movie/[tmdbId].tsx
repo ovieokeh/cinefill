@@ -29,23 +29,44 @@ import {
   SimilarMoviesCarousel,
   ActionSheet,
   type ActionSheetHandle,
+  type ActionItem,
 } from '@/components';
 import { useTheme } from '@/theme';
-import { getEntry, deleteEntry, type DiaryEntry } from '@/db/diary';
+import {
+  getEntryByTmdbId,
+  deleteEntry,
+  type DiaryEntry,
+} from '@/db/diary';
+import {
+  addToWatchlist,
+  removeFromWatchlist,
+  isInWatchlist,
+} from '@/db/watchlist';
 import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
 
 const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
+const FAB_SIZE = 56;
+const FAB_ICON_SIZE = 26;
 
-type EntryState = DiaryEntry | null | 'missing';
-
-export default function EntryDetailScreen() {
+export default function MovieScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const entryId = Number(id);
+  const { tmdbId: rawTmdbId, title, year, posterPath } = useLocalSearchParams<{
+    tmdbId: string;
+    title?: string;
+    year?: string;
+    posterPath?: string;
+  }>();
+  const tmdbId = Number(rawTmdbId);
+  const validTmdbId = Number.isFinite(tmdbId);
 
-  const [entry, setEntry] = useState<EntryState>(null);
+  const seedTitle = title ?? null;
+  const seedYear = year ?? null;
+  const seedPosterPath = posterPath && posterPath.length > 0 ? posterPath : null;
+
+  const [entry, setEntry] = useState<DiaryEntry | null>(null);
+  const [inWatchlist, setInWatchlist] = useState(false);
   const [details, setDetails] = useState<MovieDetails | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
@@ -53,13 +74,11 @@ export default function EntryDetailScreen() {
   const [retryKey, setRetryKey] = useState(0);
 
   const scrollY = useSharedValue(0);
-
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
       scrollY.value = e.contentOffset.y;
     },
   });
-
   useAnimatedReaction(
     () => scrollY.value > HERO_COLLAPSE_THRESHOLD,
     (current, previous) => {
@@ -72,25 +91,24 @@ export default function EntryDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      if (!Number.isFinite(entryId)) {
-        setEntry('missing');
-        return;
-      }
+      if (!validTmdbId) return;
       (async () => {
-        const row = await getEntry(entryId);
+        const [row, watch] = await Promise.all([
+          getEntryByTmdbId(tmdbId),
+          isInWatchlist(tmdbId),
+        ]);
         if (cancelled) return;
-        setEntry(row ?? 'missing');
+        setEntry(row);
+        setInWatchlist(watch);
       })();
       return () => {
         cancelled = true;
       };
-    }, [entryId]),
+    }, [tmdbId, validTmdbId]),
   );
 
-  const tmdbId = entry && entry !== 'missing' ? entry.tmdbId : null;
-
   useEffect(() => {
-    if (tmdbId == null) return;
+    if (!validTmdbId) return;
     const controller = new AbortController();
     setLoadingDetails(true);
     setDetailsError(null);
@@ -108,27 +126,29 @@ export default function EntryDetailScreen() {
     return () => {
       controller.abort();
     };
-  }, [tmdbId, retryKey]);
+  }, [tmdbId, validTmdbId, retryKey]);
 
-  const navTitle =
-    showNavTitle && entry && entry !== 'missing' ? entry.title : '';
+  const heroTitle = details?.title ?? entry?.title ?? seedTitle ?? '';
+  const heroYear = entry?.year ?? seedYear;
+  const heroPosterPath = details?.posterPath ?? entry?.posterPath ?? seedPosterPath;
 
-  const loadedEntry = entry && entry !== 'missing' ? entry : null;
+  const navTitle = showNavTitle && heroTitle ? heroTitle : '';
+
   const actionSheetRef = useRef<ActionSheetHandle>(null);
 
   const doDelete = useCallback(async () => {
-    if (!loadedEntry) return;
+    if (!entry) return;
     try {
-      await deleteEntry(loadedEntry.id);
-      router.dismissTo('/');
+      await deleteEntry(entry.id);
+      setEntry(null);
     } catch (e) {
       console.error('Failed to delete entry', e);
     }
-  }, [loadedEntry, router]);
+  }, [entry]);
 
   const confirmDelete = useCallback(() => {
     Alert.alert(
-      'Delete entry?',
+      'Delete log?',
       'This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -138,39 +158,92 @@ export default function EntryDetailScreen() {
     );
   }, [doDelete]);
 
+  const toggleWatchlist = useCallback(async () => {
+    if (!validTmdbId) return;
+    try {
+      if (inWatchlist) {
+        await removeFromWatchlist(tmdbId);
+        setInWatchlist(false);
+      } else {
+        await addToWatchlist({
+          tmdbId,
+          title: heroTitle,
+          year: heroYear,
+          posterPath: heroPosterPath,
+        });
+        setInWatchlist(true);
+      }
+    } catch (e) {
+      console.error('Failed to toggle watchlist', e);
+    }
+  }, [tmdbId, validTmdbId, inWatchlist, heroTitle, heroYear, heroPosterPath]);
+
   const openActions = useCallback(() => {
-    if (!loadedEntry) return;
-    actionSheetRef.current?.present([
-      {
-        label: 'Edit entry',
+    if (!validTmdbId || !heroTitle) return;
+    const actions: ActionItem[] = [];
+    if (entry) {
+      actions.push({
+        label: 'Edit log',
         icon: 'pencil',
-        onPress: () => router.push(`/edit-entry/${loadedEntry.id}`),
-      },
-      {
-        label: 'Delete entry',
+        onPress: () => router.push(`/edit-entry/${entry.id}`),
+      });
+      actions.push({
+        label: 'Delete log',
         icon: 'trash-outline',
         destructive: true,
         onPress: confirmDelete,
-      },
-    ]);
-  }, [loadedEntry, router, confirmDelete]);
+      });
+    } else {
+      actions.push({
+        label: 'Log a watch',
+        icon: 'eye-outline',
+        onPress: () =>
+          router.push({
+            pathname: '/new-entry',
+            params: {
+              tmdbId: String(tmdbId),
+              title: heroTitle,
+              year: heroYear ?? '',
+              posterPath: heroPosterPath ?? '',
+            },
+          }),
+      });
+    }
+    actions.push({
+      label: inWatchlist ? 'Remove from watchlist' : 'Add to watchlist',
+      icon: inWatchlist ? 'bookmark' : 'bookmark-outline',
+      onPress: toggleWatchlist,
+    });
+    actionSheetRef.current?.present(actions);
+  }, [
+    validTmdbId,
+    heroTitle,
+    entry,
+    inWatchlist,
+    router,
+    tmdbId,
+    heroYear,
+    heroPosterPath,
+    confirmDelete,
+    toggleWatchlist,
+  ]);
 
-  if (entry === 'missing') {
+  if (!validTmdbId) {
     return (
       <>
         <Stack.Screen options={{ title: '' }} />
         <Screen>
           <View style={styles.centered}>
-            <Text variant="titleLg">Entry not found</Text>
+            <Text variant="titleLg">Film not found</Text>
             <Text
               variant="body"
               tone="muted"
               style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
             >
-              This diary entry may have been deleted.
+              The film reference is invalid.
             </Text>
             <Button
-              title="Back to diary"
+              title="Go back"
               variant="ghost"
               onPress={() => router.back()}
               style={{ marginTop: t.spacing.lg }}
@@ -181,69 +254,43 @@ export default function EntryDetailScreen() {
     );
   }
 
-  if (entry == null) {
-    return (
-      <>
-        <Stack.Screen options={{ title: '' }} />
-        <Screen padded={false}>
-          <View style={styles.centered}>
-            <ActivityIndicator color={t.colors.text.muted} />
-          </View>
-        </Screen>
-      </>
-    );
-  }
+  const fabIcon: keyof typeof Ionicons.glyphMap = entry
+    ? 'eye'
+    : inWatchlist
+      ? 'bookmark'
+      : 'add';
 
-  const watched = parseISO(entry.watchedDate);
-  const tagline = details?.tagline ?? '';
   const overview = details?.overview ?? '';
+  const tagline = details?.tagline ?? '';
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: navTitle,
-          headerRight: () => (
-            <Pressable
-              onPress={openActions}
-              hitSlop={t.spacing.sm}
-              accessibilityLabel="Entry options"
-              accessibilityRole="button"
-              style={{
-                paddingHorizontal: t.spacing.sm,
-                paddingVertical: t.spacing.sm,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons
-                name="ellipsis-horizontal"
-                size={t.spacing.xl}
-                color={t.colors.accent.base}
-              />
-            </Pressable>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: navTitle }} />
       <Screen padded={false}>
         <Animated.ScrollView
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
         >
-          <BackdropPosterHeader
-            backdropPath={details?.backdropPath ?? null}
-            posterPath={details?.posterPath ?? entry.posterPath}
-            title={entry.title}
-            year={entry.year}
-            runtime={details?.runtime ?? null}
-            genres={details?.genres ?? []}
-            director={details?.director ?? null}
-            certification={details?.certification ?? null}
-            scrollY={scrollY}
-          />
+          {heroTitle ? (
+            <BackdropPosterHeader
+              backdropPath={details?.backdropPath ?? null}
+              posterPath={heroPosterPath}
+              title={heroTitle}
+              year={heroYear}
+              runtime={details?.runtime ?? null}
+              genres={details?.genres ?? []}
+              director={details?.director ?? null}
+              certification={details?.certification ?? null}
+              scrollY={scrollY}
+            />
+          ) : (
+            <View style={styles.heroSkeleton}>
+              <ActivityIndicator color={t.colors.text.muted} />
+            </View>
+          )}
 
-          <YourLogSection entry={entry} watched={watched} />
+          {entry ? <YourLogSection entry={entry} /> : null}
 
           {loadingDetails && !details ? (
             <SkeletonBlocks />
@@ -251,9 +298,7 @@ export default function EntryDetailScreen() {
             <ErrorBlock message={detailsError} onRetry={() => setRetryKey((k) => k + 1)} />
           ) : details ? (
             <>
-              {overview || tagline ? (
-                <SectionTitle title="Overview" />
-              ) : null}
+              {overview || tagline ? <SectionTitle title="Overview" /> : null}
               {tagline ? (
                 <Text
                   variant="body"
@@ -313,6 +358,26 @@ export default function EntryDetailScreen() {
             </>
           ) : null}
         </Animated.ScrollView>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Film actions"
+          onPress={openActions}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              bottom: t.spacing.xl,
+              right: t.spacing.xl,
+              width: FAB_SIZE,
+              height: FAB_SIZE,
+              borderRadius: t.radii.pill,
+              backgroundColor: pressed ? t.colors.accent.pressed : t.colors.accent.base,
+              ...t.shadows.card,
+            },
+          ]}
+        >
+          <Ionicons name={fabIcon} size={FAB_ICON_SIZE} color={t.colors.accent.on} />
+        </Pressable>
       </Screen>
       <ActionSheet ref={actionSheetRef} />
     </>
@@ -338,8 +403,9 @@ function SectionTitle({ title }: { title: string }) {
   );
 }
 
-function YourLogSection({ entry, watched }: { entry: DiaryEntry; watched: Date }) {
+function YourLogSection({ entry }: { entry: DiaryEntry }) {
   const t = useTheme();
+  const watched = parseISO(entry.watchedDate);
   return (
     <View
       style={{
@@ -430,6 +496,17 @@ function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroSkeleton: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fab: {
+    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
   },

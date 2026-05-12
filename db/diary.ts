@@ -76,6 +76,15 @@ export async function getEntry(id: number): Promise<DiaryEntry | null> {
   return row ? rowToEntry(row) : null;
 }
 
+export async function getEntryByTmdbId(tmdbId: number): Promise<DiaryEntry | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<Row>(
+    'SELECT id, tmdb_id, title, year, poster_path, watched_date, rating, note, created_at FROM entries WHERE tmdb_id = ? ORDER BY created_at DESC LIMIT 1',
+    tmdbId,
+  );
+  return row ? rowToEntry(row) : null;
+}
+
 export async function listEntries(): Promise<DiaryEntry[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
