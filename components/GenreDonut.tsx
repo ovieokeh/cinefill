@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   Easing,
@@ -73,8 +73,22 @@ export function GenreDonut({
 }) {
   const t = useTheme();
   const progress = useSharedValue(0);
-  const total = buckets.reduce((s, b) => s + b.count, 0);
-  const totalMs = ANIM_DURATION + Math.max(0, buckets.length - 1) * ANIM_STAGGER;
+  const { total, slices, totalMs } = useMemo(() => {
+    const sum = buckets.reduce((s, b) => s + b.count, 0);
+    let cumulative = 0;
+    const computed = buckets.map((b) => {
+      const fraction = sum > 0 ? b.count / sum : 0;
+      const arcLen = fraction * CIRC;
+      const offset = cumulative;
+      cumulative += arcLen;
+      return { bucket: b, arcLen, offset };
+    });
+    return {
+      total: sum,
+      slices: computed,
+      totalMs: ANIM_DURATION + Math.max(0, buckets.length - 1) * ANIM_STAGGER,
+    };
+  }, [buckets]);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,18 +97,19 @@ export function GenreDonut({
     }, [progress, totalMs]),
   );
 
-  let cumulative = 0;
-  const slices = buckets.map((b) => {
-    const fraction = total > 0 ? b.count / total : 0;
-    const arcLen = fraction * CIRC;
-    const offset = cumulative;
-    cumulative += arcLen;
-    return { bucket: b, arcLen, offset };
-  });
+  const a11yLabel = useMemo(() => {
+    if (buckets.length === 0) return 'Top genres chart, no data';
+    const lead = buckets[0];
+    return `Top genres chart, ${total} watches across ${buckets.length} genres, ${lead.label} leading with ${lead.count}`;
+  }, [buckets, total]);
 
   return (
     <View>
-      <View style={[styles.donutWrap, { marginBottom: t.spacing.lg }]}>
+      <View
+        style={[styles.donutWrap, { marginBottom: t.spacing.lg }]}
+        accessible
+        accessibilityLabel={a11yLabel}
+      >
         <View style={styles.donutFrame}>
           <Svg width={DONUT_SIZE} height={DONUT_SIZE}>
             <G rotation={-90} originX={DONUT_SIZE / 2} originY={DONUT_SIZE / 2}>

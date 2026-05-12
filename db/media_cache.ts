@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { ensureSchema } from './connection';
 
 export type CachedSeason = {
   seasonNumber: number;
@@ -17,34 +18,26 @@ export type MediaCacheRow = {
 
 export type NewMediaCacheRow = Omit<MediaCacheRow, 'fetchedAt'>;
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
 function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync('cinefill.db');
-      await db.execAsync(`
-        PRAGMA journal_mode = WAL;
-        CREATE TABLE IF NOT EXISTS media_cache (
-          tmdb_id INTEGER NOT NULL,
-          media_type TEXT NOT NULL,
-          genre_ids TEXT NOT NULL,
-          runtime INTEGER,
-          director TEXT,
-          fetched_at INTEGER NOT NULL,
-          PRIMARY KEY (tmdb_id, media_type)
-        );
-      `);
-      const cols = await db.getAllAsync<{ name: string }>(
-        `PRAGMA table_info(media_cache)`,
+  return ensureSchema('media_cache', async (db) => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS media_cache (
+        tmdb_id INTEGER NOT NULL,
+        media_type TEXT NOT NULL,
+        genre_ids TEXT NOT NULL,
+        runtime INTEGER,
+        director TEXT,
+        fetched_at INTEGER NOT NULL,
+        PRIMARY KEY (tmdb_id, media_type)
       );
-      if (!cols.some((c) => c.name === 'seasons_json')) {
-        await db.execAsync(`ALTER TABLE media_cache ADD COLUMN seasons_json TEXT`);
-      }
-      return db;
-    })();
-  }
-  return dbPromise;
+    `);
+    const cols = await db.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(media_cache)`,
+    );
+    if (!cols.some((c) => c.name === 'seasons_json')) {
+      await db.execAsync(`ALTER TABLE media_cache ADD COLUMN seasons_json TEXT`);
+    }
+  });
 }
 
 type Row = {

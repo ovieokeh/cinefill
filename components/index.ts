@@ -1,6 +1,8 @@
 export { Screen } from './Screen';
 export { Text } from './Text';
 export type { TextProps } from './Text';
+export { SectionTitle } from './SectionTitle';
+export { ErrorBlock } from './ErrorBlock';
 export { Input } from './Input';
 export { Button } from './Button';
 export { StarRating } from './StarRating';
@@ -15,7 +17,6 @@ export { WatchProviders } from './WatchProviders';
 export { CrewAndGenresSection } from './CrewAndGenresSection';
 export { MoviePosterRow, MoviePosterRowSkeleton } from './MoviePosterRow';
 export type { MoviePosterItem } from './MoviePosterRow';
-export { CertificationBadge } from './CertificationBadge';
 export { ActionSheet } from './ActionSheet';
 export type { ActionItem, ActionSheetHandle } from './ActionSheet';
 export { Skeleton, SkeletonText, SkeletonPoster } from './Skeleton';

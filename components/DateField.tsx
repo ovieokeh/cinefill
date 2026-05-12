@@ -34,6 +34,8 @@ export function DateField({ value, onChange, label = 'Watched' }: Props) {
       </Text>
       <Pressable
         onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${format(date, 'EEE, MMM d, yyyy')}. Tap to change.`}
         style={[
           styles.field,
           {

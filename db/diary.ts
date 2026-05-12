@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { ensureSchema } from './connection';
 
 export type EntryMediaType = 'movie' | 'tv_season';
 
@@ -19,60 +20,50 @@ export type DiaryEntry = {
 
 export type NewDiaryEntry = Omit<DiaryEntry, 'id' | 'createdAt'>;
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
 function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync('cinefill.db');
-      await db.execAsync('PRAGMA journal_mode = WAL;');
-
-      // Base table — created on a fresh install with the full schema.
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS entries (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          tmdb_id INTEGER NOT NULL,
-          media_type TEXT NOT NULL DEFAULT 'movie',
-          season_number INTEGER,
-          season_name TEXT,
-          title TEXT NOT NULL,
-          year TEXT,
-          poster_path TEXT,
-          watched_date TEXT NOT NULL,
-          rating REAL NOT NULL,
-          note TEXT NOT NULL DEFAULT '',
-          created_at INTEGER NOT NULL
-        );
-      `);
-
-      // Migrate older databases that pre-date media_type / season columns.
-      const cols = await db.getAllAsync<{ name: string }>(
-        'PRAGMA table_info(entries)',
+  return ensureSchema('diary', async (db) => {
+    // Base table — created on a fresh install with the full schema.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tmdb_id INTEGER NOT NULL,
+        media_type TEXT NOT NULL DEFAULT 'movie',
+        season_number INTEGER,
+        season_name TEXT,
+        title TEXT NOT NULL,
+        year TEXT,
+        poster_path TEXT,
+        watched_date TEXT NOT NULL,
+        rating REAL NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
       );
-      const has = (n: string) => cols.some((c) => c.name === n);
-      if (!has('media_type')) {
-        await db.execAsync(
-          "ALTER TABLE entries ADD COLUMN media_type TEXT NOT NULL DEFAULT 'movie';",
-        );
-      }
-      if (!has('season_number')) {
-        await db.execAsync('ALTER TABLE entries ADD COLUMN season_number INTEGER;');
-      }
-      if (!has('season_name')) {
-        await db.execAsync('ALTER TABLE entries ADD COLUMN season_name TEXT;');
-      }
+    `);
 
-      await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_entries_watched_date ON entries(watched_date DESC);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_tv_season_uniq
-          ON entries(tmdb_id, season_number)
-          WHERE media_type = 'tv_season';
-      `);
+    // Migrate older databases that pre-date media_type / season columns.
+    const cols = await db.getAllAsync<{ name: string }>(
+      'PRAGMA table_info(entries)',
+    );
+    const has = (n: string) => cols.some((c) => c.name === n);
+    if (!has('media_type')) {
+      await db.execAsync(
+        "ALTER TABLE entries ADD COLUMN media_type TEXT NOT NULL DEFAULT 'movie';",
+      );
+    }
+    if (!has('season_number')) {
+      await db.execAsync('ALTER TABLE entries ADD COLUMN season_number INTEGER;');
+    }
+    if (!has('season_name')) {
+      await db.execAsync('ALTER TABLE entries ADD COLUMN season_name TEXT;');
+    }
 
-      return db;
-    })();
-  }
-  return dbPromise;
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_entries_watched_date ON entries(watched_date DESC);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_tv_season_uniq
+        ON entries(tmdb_id, season_number)
+        WHERE media_type = 'tv_season';
+    `);
+  });
 }
 
 type Row = {

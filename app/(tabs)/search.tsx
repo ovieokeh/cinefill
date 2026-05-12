@@ -161,6 +161,9 @@ function MediaTypeRow({
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={opt.label}
             style={({ pressed }) => [
               styles.chip,
               {
@@ -230,6 +233,9 @@ function GenrePickerChip({
         <Pressable
           onPress={openPicker}
           disabled={loading || genres.length === 0}
+          accessibilityRole="button"
+          accessibilityLabel={value ? `Genre: ${value.name}` : 'Select genre'}
+          accessibilityState={{ disabled: loading || genres.length === 0 }}
           style={({ pressed }) => [
             styles.chip,
             {

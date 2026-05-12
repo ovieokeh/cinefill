@@ -17,6 +17,7 @@ import {
   StarRating,
   ActivityLineChart,
   GenreDonut,
+  SectionTitle,
 } from '@/components';
 import { useTheme } from '@/theme';
 import {
@@ -203,8 +204,11 @@ export default function YouScreen() {
           if (controller.signal.aborted) return;
           setCache((prev) => mergeRow(prev, row));
         }
-      } catch {
-        // Silent: best-effort; next time the screen mounts it'll retry.
+      } catch (err) {
+        // Best-effort: log but don't surface to UI; next focus retries.
+        if (!controller.signal.aborted) {
+          console.warn('media_cache backfill failed', item, err);
+        }
       } finally {
         if (!controller.signal.aborted) {
           setBackfillRemaining((prev) => Math.max(0, prev - 1));
@@ -722,25 +726,6 @@ function TopRatedRow({
         </View>
       </View>
     </Pressable>
-  );
-}
-
-function SectionTitle({ title }: { title: string }) {
-  const t = useTheme();
-  return (
-    <Text
-      variant="label"
-      tone="muted"
-      style={{
-        marginTop: t.spacing.xxxl,
-        marginBottom: t.spacing.md,
-        paddingHorizontal: t.spacing.lg,
-        textTransform: 'uppercase',
-        letterSpacing: t.tracking.label,
-      }}
-    >
-      {title}
-    </Text>
   );
 }
 

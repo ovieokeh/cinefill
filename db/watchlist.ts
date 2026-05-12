@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { ensureSchema } from './connection';
 
 export type WatchlistMediaType = 'movie' | 'tv';
 
@@ -13,59 +14,49 @@ export type WatchlistItem = {
 
 export type NewWatchlistItem = Omit<WatchlistItem, 'addedAt'>;
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
 function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync('cinefill.db');
-      await db.execAsync('PRAGMA journal_mode = WAL;');
+  return ensureSchema('watchlist', async (db) => {
+    const cols = await db.getAllAsync<{ name: string }>(
+      'PRAGMA table_info(watchlist)',
+    );
+    const tableExists = cols.length > 0;
+    const hasMediaType = cols.some((c) => c.name === 'media_type');
 
-      const cols = await db.getAllAsync<{ name: string }>(
-        'PRAGMA table_info(watchlist)',
-      );
-      const tableExists = cols.length > 0;
-      const hasMediaType = cols.some((c) => c.name === 'media_type');
+    if (!tableExists) {
+      await db.execAsync(`
+        CREATE TABLE watchlist (
+          tmdb_id INTEGER NOT NULL,
+          media_type TEXT NOT NULL DEFAULT 'movie',
+          title TEXT NOT NULL,
+          year TEXT,
+          poster_path TEXT,
+          added_at INTEGER NOT NULL,
+          PRIMARY KEY (tmdb_id, media_type)
+        );
+      `);
+    } else if (!hasMediaType) {
+      // Migrate v1 → v2: add media_type, change PK to composite.
+      await db.execAsync(`
+        ALTER TABLE watchlist RENAME TO watchlist_old;
+        CREATE TABLE watchlist (
+          tmdb_id INTEGER NOT NULL,
+          media_type TEXT NOT NULL DEFAULT 'movie',
+          title TEXT NOT NULL,
+          year TEXT,
+          poster_path TEXT,
+          added_at INTEGER NOT NULL,
+          PRIMARY KEY (tmdb_id, media_type)
+        );
+        INSERT INTO watchlist (tmdb_id, media_type, title, year, poster_path, added_at)
+          SELECT tmdb_id, 'movie', title, year, poster_path, added_at FROM watchlist_old;
+        DROP TABLE watchlist_old;
+      `);
+    }
 
-      if (!tableExists) {
-        await db.execAsync(`
-          CREATE TABLE watchlist (
-            tmdb_id INTEGER NOT NULL,
-            media_type TEXT NOT NULL DEFAULT 'movie',
-            title TEXT NOT NULL,
-            year TEXT,
-            poster_path TEXT,
-            added_at INTEGER NOT NULL,
-            PRIMARY KEY (tmdb_id, media_type)
-          );
-        `);
-      } else if (!hasMediaType) {
-        // Migrate v1 → v2: add media_type, change PK to composite.
-        await db.execAsync(`
-          ALTER TABLE watchlist RENAME TO watchlist_old;
-          CREATE TABLE watchlist (
-            tmdb_id INTEGER NOT NULL,
-            media_type TEXT NOT NULL DEFAULT 'movie',
-            title TEXT NOT NULL,
-            year TEXT,
-            poster_path TEXT,
-            added_at INTEGER NOT NULL,
-            PRIMARY KEY (tmdb_id, media_type)
-          );
-          INSERT INTO watchlist (tmdb_id, media_type, title, year, poster_path, added_at)
-            SELECT tmdb_id, 'movie', title, year, poster_path, added_at FROM watchlist_old;
-          DROP TABLE watchlist_old;
-        `);
-      }
-
-      await db.execAsync(
-        'CREATE INDEX IF NOT EXISTS idx_watchlist_added_at ON watchlist(added_at DESC);',
-      );
-
-      return db;
-    })();
-  }
-  return dbPromise;
+    await db.execAsync(
+      'CREATE INDEX IF NOT EXISTS idx_watchlist_added_at ON watchlist(added_at DESC);',
+    );
+  });
 }
 
 type Row = {

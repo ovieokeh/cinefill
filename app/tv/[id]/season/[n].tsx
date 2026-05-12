@@ -21,6 +21,8 @@ import {
   type ActionItem,
   Skeleton,
   SkeletonText,
+  SectionTitle,
+  ErrorBlock,
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getSeasonDetails, type SeasonDetails, type TvEpisode } from '@/lib/tmdb';
@@ -284,7 +286,11 @@ export default function SeasonDetailScreen() {
           {loading && !season ? (
             <EpisodeListSkeleton />
           ) : error && !season ? (
-            <ErrorBlock message={error} onRetry={() => setRetryKey((k) => k + 1)} />
+            <ErrorBlock
+              title="Couldn't load this season"
+              message={error}
+              onRetry={() => setRetryKey((k) => k + 1)}
+            />
           ) : season ? (
             season.episodes.length === 0 ? (
               <Text
@@ -452,47 +458,6 @@ function EpisodeListSkeleton({ count = 6 }: { count?: number }) {
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
-  const t = useTheme();
-  return (
-    <Text
-      variant="label"
-      tone="muted"
-      style={{
-        marginTop: t.spacing.xxxl,
-        marginBottom: t.spacing.md,
-        paddingHorizontal: t.spacing.lg,
-        textTransform: 'uppercase',
-        letterSpacing: t.tracking.label,
-      }}
-    >
-      {title}
-    </Text>
-  );
-}
-
-function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
-  const t = useTheme();
-  return (
-    <View
-      style={{
-        marginTop: t.spacing.lg,
-        marginHorizontal: t.spacing.lg,
-        padding: t.spacing.lg,
-        borderRadius: t.radii.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: t.colors.border.subtle,
-        backgroundColor: t.colors.bg.surface,
-      }}
-    >
-      <Text variant="bodyStrong">Couldn&apos;t load this season</Text>
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
-        {message}
-      </Text>
-      <Button title="Retry" variant="ghost" onPress={onRetry} style={{ marginTop: t.spacing.md }} />
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },

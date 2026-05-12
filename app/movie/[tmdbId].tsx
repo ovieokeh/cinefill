@@ -31,6 +31,8 @@ import {
   type ActionSheetHandle,
   type ActionItem,
   Skeleton,
+  SectionTitle,
+  ErrorBlock,
 } from '@/components';
 import { haptic } from '@/lib/haptics';
 import { useTheme } from '@/theme';
@@ -276,6 +278,11 @@ export default function MovieScreen() {
     : inWatchlist
       ? 'bookmark'
       : 'add';
+  const fabLabel = entry
+    ? 'Film actions: view log'
+    : inWatchlist
+      ? 'Film actions: in watchlist'
+      : 'Film actions: log or save';
 
   const overview = details?.overview ?? '';
   const tagline = details?.tagline ?? '';
@@ -310,7 +317,11 @@ export default function MovieScreen() {
           {loadingDetails && !details ? (
             <SkeletonBlocks />
           ) : detailsError ? (
-            <ErrorBlock message={detailsError} onRetry={() => setRetryKey((k) => k + 1)} />
+            <ErrorBlock
+              title="Couldn't load film details"
+              message={detailsError}
+              onRetry={() => setRetryKey((k) => k + 1)}
+            />
           ) : details ? (
             <>
               {overview || tagline ? <SectionTitle title="Overview" /> : null}
@@ -376,7 +387,7 @@ export default function MovieScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Film actions"
+          accessibilityLabel={fabLabel}
           onPress={openActions}
           style={({ pressed }) => [
             styles.fab,
@@ -396,25 +407,6 @@ export default function MovieScreen() {
       </Screen>
       <ActionSheet ref={actionSheetRef} />
     </>
-  );
-}
-
-function SectionTitle({ title }: { title: string }) {
-  const t = useTheme();
-  return (
-    <Text
-      variant="label"
-      tone="muted"
-      style={{
-        marginTop: t.spacing.xxxl,
-        marginBottom: t.spacing.md,
-        paddingHorizontal: t.spacing.lg,
-        textTransform: 'uppercase',
-        letterSpacing: t.tracking.label,
-      }}
-    >
-      {title}
-    </Text>
   );
 }
 
@@ -470,29 +462,6 @@ function SkeletonBlocks() {
       <View style={{ marginTop: t.spacing.md }}>
         <Skeleton height={SKELETON_BLOCK_HEIGHT} />
       </View>
-    </View>
-  );
-}
-
-function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
-  const t = useTheme();
-  return (
-    <View
-      style={{
-        marginTop: t.spacing.xxxl,
-        marginHorizontal: t.spacing.lg,
-        padding: t.spacing.lg,
-        borderRadius: t.radii.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: t.colors.border.subtle,
-        backgroundColor: t.colors.bg.surface,
-      }}
-    >
-      <Text variant="bodyStrong">Couldn&apos;t load film details</Text>
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
-        {message}
-      </Text>
-      <Button title="Retry" variant="ghost" onPress={onRetry} style={{ marginTop: t.spacing.md }} />
     </View>
   );
 }

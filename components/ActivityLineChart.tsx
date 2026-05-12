@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, LayoutChangeEvent, StyleSheet } from 'react-native';
 import Animated, {
   Easing,
@@ -18,6 +18,22 @@ const CHART_PADDING_TOP = 8;
 const DRAW_DURATION_MS = 500;
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function buildA11yLabel(activity: MonthCount[]): string {
+  if (activity.length === 0) return 'Activity chart, no data';
+  const total = activity.reduce((s, a) => s + a.count, 0);
+  let peak = activity[0];
+  for (const a of activity) {
+    if (a.count > peak.count) peak = a;
+  }
+  if (peak.count === 0) return `Activity chart, ${activity.length} months, no watches`;
+  return `Activity chart, last ${activity.length} months, ${total} total watches, peak in ${MONTH_NAMES[peak.month]} ${peak.year} with ${peak.count}`;
+}
 
 function catmullRomPath(points: { x: number; y: number }[]): string {
   if (points.length === 0) return '';
@@ -62,10 +78,9 @@ export function ActivityLineChart({ activity }: { activity: MonthCount[] }) {
   };
 
   const chartTotalHeight = CHART_HEIGHT + CHART_PADDING_TOP;
-  let inner: React.ReactNode = null;
-  if (width > 0 && activity.length > 0) {
-    const counts = activity.map((a) => a.count);
-    const max = Math.max(1, ...counts);
+  const geometry = useMemo(() => {
+    if (width <= 0 || activity.length === 0) return null;
+    const max = Math.max(1, ...activity.map((a) => a.count));
     const stepX = activity.length > 1 ? width / (activity.length - 1) : width;
     const points = activity.map((a, i) => ({
       x: i * stepX,
@@ -76,6 +91,12 @@ export function ActivityLineChart({ activity }: { activity: MonthCount[] }) {
     const last = points[points.length - 1];
     const first = points[0];
     const areaPath = `${linePath} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
+    return { linePath, areaPath, baseY };
+  }, [activity, width]);
+
+  let inner: React.ReactNode = null;
+  if (geometry) {
+    const { linePath, areaPath, baseY } = geometry;
 
     inner = (
       <Svg width={width} height={chartTotalHeight}>
@@ -116,9 +137,16 @@ export function ActivityLineChart({ activity }: { activity: MonthCount[] }) {
     );
   }
 
+  const a11yLabel = useMemo(() => buildA11yLabel(activity), [activity]);
+
   return (
     <View style={{ paddingHorizontal: t.spacing.lg }}>
-      <View style={{ height: chartTotalHeight }} onLayout={onLayout}>
+      <View
+        style={{ height: chartTotalHeight }}
+        onLayout={onLayout}
+        accessible
+        accessibilityLabel={a11yLabel}
+      >
         {inner}
       </View>
       <View style={[styles.labelsRow, { marginTop: t.spacing.xxs }]}>

@@ -19,6 +19,8 @@ import {
   Button,
   BackdropPosterHeader,
   BackdropPosterHeaderSkeleton,
+  SectionTitle,
+  ErrorBlock,
   CastCarousel,
   TrailerCard,
   WatchProviders,
@@ -251,6 +253,12 @@ export default function TvScreen() {
 
   const fabIcon: keyof typeof Ionicons.glyphMap =
     seasonStats.count > 0 ? 'eye' : inWatchlist ? 'bookmark' : 'add';
+  const fabLabel =
+    seasonStats.count > 0
+      ? 'Show actions: view seasons'
+      : inWatchlist
+        ? 'Show actions: in watchlist'
+        : 'Show actions: log or save';
 
   const statusLine = (() => {
     if (!details) return null;
@@ -325,7 +333,11 @@ export default function TvScreen() {
           {loadingDetails && !details ? (
             <SkeletonBlocks />
           ) : detailsError ? (
-            <ErrorBlock message={detailsError} onRetry={() => setRetryKey((k) => k + 1)} />
+            <ErrorBlock
+              title="Couldn't load show details"
+              message={detailsError}
+              onRetry={() => setRetryKey((k) => k + 1)}
+            />
           ) : details ? (
             <>
               {overview || tagline ? <SectionTitle title="Overview" /> : null}
@@ -418,7 +430,7 @@ export default function TvScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Show actions"
+          accessibilityLabel={fabLabel}
           onPress={openActions}
           style={({ pressed }) => [
             styles.fab,
@@ -536,24 +548,6 @@ function StandoutRow({ item }: { item: EpisodeStandout }) {
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
-  const t = useTheme();
-  return (
-    <Text
-      variant="label"
-      tone="muted"
-      style={{
-        marginTop: t.spacing.xxxl,
-        marginBottom: t.spacing.md,
-        paddingHorizontal: t.spacing.lg,
-        textTransform: 'uppercase',
-        letterSpacing: t.tracking.label,
-      }}
-    >
-      {title}
-    </Text>
-  );
-}
 
 function SkeletonBlocks() {
   const t = useTheme();
@@ -563,29 +557,6 @@ function SkeletonBlocks() {
       <View style={{ marginTop: t.spacing.md }}>
         <Skeleton height={SKELETON_BLOCK_HEIGHT} />
       </View>
-    </View>
-  );
-}
-
-function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
-  const t = useTheme();
-  return (
-    <View
-      style={{
-        marginTop: t.spacing.xxxl,
-        marginHorizontal: t.spacing.lg,
-        padding: t.spacing.lg,
-        borderRadius: t.radii.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: t.colors.border.subtle,
-        backgroundColor: t.colors.bg.surface,
-      }}
-    >
-      <Text variant="bodyStrong">Couldn&apos;t load show details</Text>
-      <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
-        {message}
-      </Text>
-      <Button title="Retry" variant="ghost" onPress={onRetry} style={{ marginTop: t.spacing.md }} />
     </View>
   );
 }
