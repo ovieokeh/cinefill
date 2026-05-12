@@ -32,6 +32,7 @@ import {
 } from '@/components';
 import { useTheme } from '@/theme';
 import { getTvDetails, type TvDetails, type TvSeasonSummary } from '@/lib/tmdb';
+import { upsertMediaCache } from '@/db/media_cache';
 import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 import {
   getShowSeasonStats,
@@ -120,7 +121,16 @@ export default function TvScreen() {
     (async () => {
       try {
         const d = await getTvDetails(tvId, controller.signal);
-        if (!controller.signal.aborted) setDetails(d);
+        if (!controller.signal.aborted) {
+          setDetails(d);
+          upsertMediaCache({
+            tmdbId: d.tmdbId,
+            mediaType: 'tv',
+            genreIds: d.genres.map((g) => g.id),
+            runtime: d.episodeRuntime,
+            director: d.creators,
+          }).catch((err) => console.warn('media_cache upsert failed', err));
+        }
       } catch (e: unknown) {
         if (controller.signal.aborted) return;
         setDetailsError(e instanceof Error ? e.message : 'Failed to load show details');

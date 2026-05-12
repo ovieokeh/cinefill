@@ -41,12 +41,17 @@ theme/                # design tokens + ThemeProvider/useTheme
 `husky` + `lint-staged` are configured. Every `git commit` runs, in order:
 
 1. **`tsc --noEmit`** — full-project type-check.
-2. **`expo lint --fix --max-warnings 0`** — ESLint on staged files (treats warnings as errors).
-3. **`node scripts/check-style-tokens.mjs`** — custom guard that rejects inline hex colors, `rgba()`/`hsla()`, and inline numeric literals for spacing/typography/radius/letterSpacing/gap properties. Exempts `theme/tokens.ts`. Allows `0`, `StyleSheet.hairlineWidth`, and percentage strings.
+2. **`jest --passWithNoTests --silent`** — unit tests under `**/__tests__/*.test.ts`.
+3. **`expo lint --fix --max-warnings 0`** — ESLint on staged files (treats warnings as errors).
+4. **`node scripts/check-style-tokens.mjs`** — custom guard that rejects inline hex colors, `rgba()`/`hsla()`, and inline numeric literals for spacing/typography/radius/letterSpacing/gap properties. Exempts `theme/tokens.ts`. Allows `0`, `StyleSheet.hairlineWidth`, and percentage strings.
 
 If a commit blocks, fix the issue at the source — do **not** use `--no-verify` to bypass. The whole point of the hook is to keep the design-token rule mechanically enforced. The only legitimate reason to bypass would be an emergency hotfix the user explicitly authorizes.
 
-Run the same checks ad-hoc with `npm run typecheck` and `npm run lint`.
+Run the same checks ad-hoc with `npm run typecheck`, `npm test`, and `npm run lint`.
+
+## Where logic lives
+
+Non-trivial business logic — stat aggregation, format transforms, filter rules — goes in **pure-function modules under `lib/`** with **co-located tests** in `lib/__tests__/`. `db/` exposes raw reads; screens orchestrate; `lib/` does the math. Pure functions that depend on "now" should accept it as an optional argument so tests can pin time. Jest config: `preset: 'ts-jest'`, `testEnvironment: 'node'`, `moduleNameMapper: { '^@/(.*)$': '<rootDir>/$1' }`.
 
 ## Hard rules
 

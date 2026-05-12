@@ -4,5 +4,8 @@
 # that lint-staged would miss since it only sees changed files).
 npx tsc --noEmit || exit 1
 
+# Pure-logic unit tests (lib/__tests__). Fast; runs millis on small suites.
+npx jest --passWithNoTests --silent || exit 1
+
 # Per-staged-file checks: ESLint + custom style-token-literal guard.
 npx lint-staged || exit 1

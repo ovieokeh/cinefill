@@ -128,6 +128,12 @@ export async function isInWatchlist(
   return (row?.c ?? 0) > 0;
 }
 
+export async function countWatchlist(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM watchlist');
+  return row?.c ?? 0;
+}
+
 export async function listWatchlist(): Promise<WatchlistItem[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(

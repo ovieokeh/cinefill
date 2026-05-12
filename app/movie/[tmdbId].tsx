@@ -43,6 +43,7 @@ import {
   isInWatchlist,
 } from '@/db/watchlist';
 import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
+import { upsertMediaCache } from '@/db/media_cache';
 
 const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
@@ -115,7 +116,17 @@ export default function MovieScreen() {
     (async () => {
       try {
         const d = await getMovieDetails(tmdbId, controller.signal);
-        if (!controller.signal.aborted) setDetails(d);
+        if (!controller.signal.aborted) {
+          setDetails(d);
+          // Eagerly cache metadata for the You-tab stats. Fire-and-forget; failures shouldn't block UI.
+          upsertMediaCache({
+            tmdbId: d.tmdbId,
+            mediaType: 'movie',
+            genreIds: d.genres.map((g) => g.id),
+            runtime: d.runtime,
+            director: d.director,
+          }).catch((err) => console.warn('media_cache upsert failed', err));
+        }
       } catch (e: unknown) {
         if (controller.signal.aborted) return;
         setDetailsError(e instanceof Error ? e.message : 'Failed to load film details');

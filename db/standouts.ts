@@ -107,6 +107,14 @@ export async function isStandout(
   return (row?.c ?? 0) > 0;
 }
 
+export async function countStandouts(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) AS c FROM tv_episode_standouts',
+  );
+  return row?.c ?? 0;
+}
+
 export async function listStandoutsForShow(tmdbId: number): Promise<EpisodeStandout[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
