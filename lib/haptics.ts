@@ -17,4 +17,7 @@ export const haptic = {
   /** Success notification — save/log succeeded. */
   success: () =>
     safe(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
+  /** Warning notification — blocked action, e.g. tapping a disabled filter chip. */
+  warning: () =>
+    safe(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
 };

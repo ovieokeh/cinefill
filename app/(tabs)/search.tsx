@@ -8,7 +8,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import {
@@ -18,19 +17,19 @@ import {
   PosterImage,
   MoviePosterRow,
   MoviePosterRowSkeleton,
-  ActionSheet,
-  type ActionItem,
-  type ActionSheetHandle,
   Skeleton,
   SkeletonPoster,
   SkeletonText,
   FilmBadge,
   SectionEyebrow,
+  MediaTypeChips,
+  GenreChip,
+  DecadeChip,
+  type MediaTypeOption,
 } from '@/components';
 import { useTheme } from '@/theme';
 import {
   discoverByGenre,
-  getGenres,
   getPopularMovies,
   getPopularPeople,
   getPopularTv,
@@ -40,14 +39,13 @@ import {
   searchByType,
   searchMulti,
   type DiscoverItem,
-  type GenreRef,
   type PersonSearchResult,
   type SearchResult,
 } from '@/lib/tmdb';
 
 type MediaFilter = 'all' | 'movie' | 'tv' | 'person';
 
-const MEDIA_OPTIONS: { value: MediaFilter; label: string }[] = [
+const MEDIA_OPTIONS: MediaTypeOption<MediaFilter>[] = [
   { value: 'all', label: 'All' },
   { value: 'movie', label: 'Movies' },
   { value: 'tv', label: 'Shows' },
@@ -67,7 +65,7 @@ export default function SearchTabScreen() {
 
   const [query, setQuery] = useState('');
   const [mediaType, setMediaType] = useState<MediaFilter>('all');
-  const [genre, setGenre] = useState<GenreRef | null>(null);
+  const [genreId, setGenreId] = useState<number | null>(null);
   const [decade, setDecade] = useState<number | null>(null);
 
   // Apply filters from URL params when they change (e.g., from a genre chip tap).
@@ -79,9 +77,9 @@ export default function SearchTabScreen() {
     if (params.mediaType === 'movie' || params.mediaType === 'tv' || params.mediaType === 'person' || params.mediaType === 'all') {
       setMediaType(params.mediaType);
     }
-    if (params.genreId && params.genreName) {
+    if (params.genreId) {
       const gid = Number(params.genreId);
-      if (Number.isFinite(gid)) setGenre({ id: gid, name: params.genreName });
+      if (Number.isFinite(gid)) setGenreId(gid);
     }
     if (params.decade) {
       const d = Number(params.decade);
@@ -97,10 +95,10 @@ export default function SearchTabScreen() {
   // Clear genre/decade when media type can't hold them.
   useEffect(() => {
     if (mediaType !== 'movie' && mediaType !== 'tv') {
-      if (genre) setGenre(null);
+      if (genreId != null) setGenreId(null);
       if (decade != null) setDecade(null);
     }
-  }, [mediaType, genre, decade]);
+  }, [mediaType, genreId, decade]);
 
   const trimmedQuery = query.trim();
   const hasQuery = trimmedQuery.length > 0;
@@ -125,18 +123,12 @@ export default function SearchTabScreen() {
           returnKeyType="search"
         />
         <View style={{ marginTop: t.spacing.md }}>
-          <MediaTypeRow value={mediaType} onChange={setMediaType} />
+          <MediaTypeChips options={MEDIA_OPTIONS} value={mediaType} onChange={setMediaType} />
         </View>
         {mediaType === 'movie' || mediaType === 'tv' ? (
           <View style={[styles.chipRow, { marginTop: t.spacing.sm, gap: t.spacing.sm }]}>
-            <GenrePickerChip
-              mediaType={mediaType}
-              value={genre}
-              onChange={setGenre}
-            />
-            {decade != null ? (
-              <DecadeChip decade={decade} onClear={() => setDecade(null)} />
-            ) : null}
+            <GenreChip mediaType={mediaType} value={genreId} onChange={setGenreId} />
+            <DecadeChip value={decade} onChange={setDecade} />
           </View>
         ) : null}
       </View>
@@ -145,17 +137,17 @@ export default function SearchTabScreen() {
         <ResultsBody
           query={trimmedQuery}
           mediaType={mediaType}
-          genre={genre}
+          genreId={genreId}
           onPick={(item) => navigateToItem(router, item)}
         />
       ) : mediaType === 'all' ? (
         <DiscoveryFeed router={router} />
       ) : mediaType === 'person' ? (
         <PopularPeopleList router={router} />
-      ) : genre || decade != null ? (
+      ) : genreId != null || decade != null ? (
         <DiscoverGrid
           mediaType={mediaType}
-          genreId={genre?.id}
+          genreId={genreId ?? undefined}
           decade={decade ?? undefined}
           router={router}
         />
@@ -163,177 +155,6 @@ export default function SearchTabScreen() {
         <PopularGrid mediaType={mediaType} router={router} />
       )}
     </Screen>
-  );
-}
-
-function MediaTypeRow({
-  value,
-  onChange,
-}: {
-  value: MediaFilter;
-  onChange: (next: MediaFilter) => void;
-}) {
-  const t = useTheme();
-  return (
-    <View style={[styles.mediaRow, { gap: t.spacing.sm }]}>
-      {MEDIA_OPTIONS.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <Pressable
-            key={opt.value}
-            onPress={() => onChange(opt.value)}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={opt.label}
-            style={({ pressed }) => [
-              styles.chip,
-              {
-                backgroundColor: active ? t.colors.accent.base : t.colors.bg.elevated,
-                borderRadius: t.radii.pill,
-                paddingHorizontal: t.spacing.md,
-                paddingVertical: t.spacing.xs,
-                opacity: pressed ? t.opacity.pressed : 1,
-              },
-            ]}
-          >
-            <Text variant="caption" tone={active ? 'inverted' : 'secondary'}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function GenrePickerChip({
-  mediaType,
-  value,
-  onChange,
-}: {
-  mediaType: 'movie' | 'tv';
-  value: GenreRef | null;
-  onChange: (next: GenreRef | null) => void;
-}) {
-  const t = useTheme();
-  const sheetRef = useRef<ActionSheetHandle>(null);
-  const [genres, setGenres] = useState<GenreRef[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setGenres([]);
-    (async () => {
-      try {
-        const list = await getGenres(mediaType);
-        if (!cancelled) setGenres(list);
-      } catch {
-        // Silent: chip just won't open anything until reload.
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [mediaType]);
-
-  function openPicker() {
-    if (genres.length === 0) return;
-    const actions: ActionItem[] = genres.map((g) => ({
-      label: g.name,
-      onPress: () => onChange(g),
-    }));
-    sheetRef.current?.present(actions);
-  }
-
-  return (
-    <>
-      <View style={styles.chipRow}>
-        <Pressable
-          onPress={openPicker}
-          disabled={loading || genres.length === 0}
-          accessibilityRole="button"
-          accessibilityLabel={value ? `Genre: ${value.name}` : 'Select genre'}
-          accessibilityState={{ disabled: loading || genres.length === 0 }}
-          style={({ pressed }) => [
-            styles.chip,
-            {
-              backgroundColor: t.colors.bg.elevated,
-              borderRadius: t.radii.pill,
-              paddingHorizontal: t.spacing.md,
-              paddingVertical: t.spacing.xs,
-              opacity: pressed ? t.opacity.pressed : 1,
-            },
-          ]}
-        >
-          {loading ? (
-            <ActivityIndicator color={t.colors.text.muted} size="small" />
-          ) : (
-            <Text variant="caption" tone="secondary">
-              {value ? value.name : 'Any genre'}
-            </Text>
-          )}
-        </Pressable>
-        {value ? (
-          <Pressable
-            onPress={() => onChange(null)}
-            hitSlop={t.spacing.xs}
-            style={({ pressed }) => ({
-              marginLeft: t.spacing.xs,
-              opacity: pressed ? t.opacity.pressed : 1,
-            })}
-            accessibilityRole="button"
-            accessibilityLabel="Clear genre"
-          >
-            <Ionicons name="close-circle" size={t.spacing.lg} color={t.colors.text.muted} />
-          </Pressable>
-        ) : null}
-      </View>
-      <ActionSheet ref={sheetRef} />
-    </>
-  );
-}
-
-function DecadeChip({
-  decade,
-  onClear,
-}: {
-  decade: number;
-  onClear: () => void;
-}) {
-  const t = useTheme();
-  return (
-    <View style={styles.chipRow}>
-      <View
-        style={[
-          styles.chip,
-          {
-            backgroundColor: t.colors.bg.elevated,
-            borderRadius: t.radii.pill,
-            paddingHorizontal: t.spacing.md,
-            paddingVertical: t.spacing.xs,
-          },
-        ]}
-      >
-        <Text variant="caption" tone="secondary">
-          {decade}s
-        </Text>
-      </View>
-      <Pressable
-        onPress={onClear}
-        hitSlop={t.spacing.xs}
-        style={({ pressed }) => ({
-          marginLeft: t.spacing.xs,
-          opacity: pressed ? t.opacity.pressed : 1,
-        })}
-        accessibilityRole="button"
-        accessibilityLabel={`Clear decade filter ${decade}s`}
-      >
-        <Ionicons name="close-circle" size={t.spacing.lg} color={t.colors.text.muted} />
-      </Pressable>
-    </View>
   );
 }
 
@@ -372,12 +193,12 @@ function navigateToItem(
 function ResultsBody({
   query,
   mediaType,
-  genre,
+  genreId,
   onPick,
 }: {
   query: string;
   mediaType: MediaFilter;
-  genre: GenreRef | null;
+  genreId: number | null;
   onPick: (item: SearchResult) => void;
 }) {
   const t = useTheme();
@@ -404,10 +225,10 @@ function ResultsBody({
           items = page.results;
         }
         if (controller.signal.aborted) return;
-        if (genre && (mediaType === 'movie' || mediaType === 'tv')) {
+        if (genreId != null && (mediaType === 'movie' || mediaType === 'tv')) {
           items = items.filter((r) => {
             if (r.mediaType === 'movie' || r.mediaType === 'tv') {
-              return r.genreIds.includes(genre.id);
+              return r.genreIds.includes(genreId);
             }
             return false;
           });
@@ -426,7 +247,7 @@ function ResultsBody({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, mediaType, genre]);
+  }, [query, mediaType, genreId]);
 
   if (loading && results.length === 0) {
     return <ResultListSkeleton kind={mediaType === 'person' ? 'avatar' : 'poster'} />;
@@ -1031,9 +852,7 @@ function GridCard({ item, onPress }: { item: DiscoverItem; onPress: () => void }
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  mediaRow: { flexDirection: 'row', flexWrap: 'wrap' },
   chipRow: { flexDirection: 'row', alignItems: 'center' },
-  chip: { alignItems: 'center', justifyContent: 'center' },
   resultRow: { flexDirection: 'row', alignItems: 'center' },
   resultBody: { flex: 1, minWidth: 0 },
   tvChip: { position: 'absolute' },

@@ -9,7 +9,19 @@ import type { DiaryEntry } from '@/db/diary';
 
 const DAY_SIZE = 64;
 
-export function EntryRow({ entry }: { entry: DiaryEntry }) {
+export function EntryRow({
+  entry,
+  showMonth = false,
+}: {
+  entry: DiaryEntry;
+  /**
+   * When true the day square stacks an uppercase month abbreviation above the
+   * day number, scaled down to fit the same 64×64 box. Pass for sorts whose
+   * section header isn't temporal (e.g. rating tier, decade) so each row
+   * still carries its watched-month context.
+   */
+  showMonth?: boolean;
+}) {
   const t = useTheme();
   const watched = parseISO(entry.watchedDate);
 
@@ -36,7 +48,23 @@ export function EntryRow({ entry }: { entry: DiaryEntry }) {
           },
         ]}
       >
-        <Text variant="titleLg">{format(watched, 'd')}</Text>
+        {showMonth ? (
+          <>
+            <Text
+              variant="caption"
+              tone="muted"
+              style={{
+                textTransform: 'uppercase',
+                letterSpacing: t.tracking.label,
+              }}
+            >
+              {format(watched, 'MMM')}
+            </Text>
+            <Text variant="titleMd">{format(watched, 'd')}</Text>
+          </>
+        ) : (
+          <Text variant="titleLg">{format(watched, 'd')}</Text>
+        )}
       </View>
       <PosterImage
         posterPath={entry.posterPath}
