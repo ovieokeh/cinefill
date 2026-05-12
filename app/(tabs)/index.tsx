@@ -1,98 +1,157 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, View, StyleSheet, Pressable, RefreshControl } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Screen, Text, EntryRow } from '@/components';
+import { useTheme } from '@/theme';
+import { listEntries, type DiaryEntry } from '@/db/diary';
 
-export default function HomeScreen() {
+const FAB_SIZE = 56;
+const FAB_ICON_SIZE = 28;
+
+type Section = { key: string; label: string; items: DiaryEntry[] };
+
+function groupByMonth(entries: DiaryEntry[]): Section[] {
+  const groups = new Map<string, Section>();
+  for (const e of entries) {
+    const d = parseISO(e.watchedDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = { key, label: format(d, 'MMMM yyyy'), items: [] };
+      groups.set(key, g);
+    }
+    g.items.push(e);
+  }
+  return [...groups.values()].sort((a, b) => (a.key < b.key ? 1 : -1));
+}
+
+type Row = { type: 'header'; key: string; label: string } | { type: 'entry'; entry: DiaryEntry };
+
+function toRows(sections: Section[]): Row[] {
+  const rows: Row[] = [];
+  for (const s of sections) {
+    rows.push({ type: 'header', key: s.key, label: s.label });
+    for (const item of s.items) rows.push({ type: 'entry', entry: item });
+  }
+  return rows;
+}
+
+export default function DiaryScreen() {
+  const t = useTheme();
+  const router = useRouter();
+  const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    const rows = await listEntries();
+    setEntries(rows);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
+  const rows = entries ? toRows(groupByMonth(entries)) : [];
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <Screen padded={false}>
+      <FlatList
+        data={rows}
+        keyExtractor={(r) => (r.type === 'header' ? `h:${r.key}` : `e:${r.entry.id}`)}
+        contentContainerStyle={{
+          paddingBottom: t.spacing.xxxl * 2,
+        }}
+        renderItem={({ item }) =>
+          item.type === 'header' ? (
+            <View
+              style={{
+                backgroundColor: t.colors.bg.surface,
+                paddingHorizontal: t.spacing.lg,
+                paddingVertical: t.spacing.sm,
+              }}
+            >
+              <Text
+                variant="label"
+                tone="muted"
+                style={{ textTransform: 'uppercase', letterSpacing: 1 }}
+              >
+                {item.label}
+              </Text>
+            </View>
+          ) : (
+            <EntryRow entry={item.entry} />
+          )
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={t.colors.text.muted}
+          />
+        }
+        ListEmptyComponent={
+          entries == null ? null : (
+            <View
+              style={[
+                styles.empty,
+                { marginTop: t.spacing.xxxl, paddingHorizontal: t.spacing.xl },
+              ]}
+            >
+              <Ionicons name="film-outline" size={t.spacing.xxxl} color={t.colors.text.muted} />
+              <Text variant="titleLg" style={{ marginTop: t.spacing.md }}>
+                No entries yet
+              </Text>
+              <Text variant="body" tone="muted" style={{ marginTop: t.spacing.xs, textAlign: 'center' }}>
+                Log a film you watched recently.
+              </Text>
+            </View>
+          )
+        }
+      />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <Pressable
+        accessibilityLabel="Add diary entry"
+        onPress={() => router.push('/new-entry')}
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            bottom: t.spacing.xl,
+            right: t.spacing.xl,
+            width: FAB_SIZE,
+            height: FAB_SIZE,
+            borderRadius: t.radii.pill,
+            backgroundColor: pressed ? t.colors.accent.pressed : t.colors.accent.base,
+            ...t.shadows.card,
+          },
+        ]}
+      >
+        <Ionicons name="add" size={FAB_ICON_SIZE} color={t.colors.accent.on} />
+      </Pressable>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  empty: {
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  fab: {
     position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
