@@ -131,6 +131,10 @@ export default function TvScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.episodeRuntime,
             director: d.creators,
+            seasons: d.seasons.map((s) => ({
+              seasonNumber: s.seasonNumber,
+              episodeCount: s.episodeCount,
+            })),
           }).catch((err) => console.warn('media_cache upsert failed', err));
         }
       } catch (e: unknown) {

@@ -19,3 +19,5 @@ export { CertificationBadge } from './CertificationBadge';
 export { ActionSheet } from './ActionSheet';
 export type { ActionItem, ActionSheetHandle } from './ActionSheet';
 export { Skeleton, SkeletonText, SkeletonPoster } from './Skeleton';
+export { ActivityLineChart } from './ActivityLineChart';
+export { GenreDonut } from './GenreDonut';

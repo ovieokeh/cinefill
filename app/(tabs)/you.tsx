@@ -9,7 +9,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 
-import { Screen, Text, Button, PosterImage, StarRating } from '@/components';
+import {
+  Screen,
+  Text,
+  Button,
+  PosterImage,
+  StarRating,
+  ActivityLineChart,
+  GenreDonut,
+} from '@/components';
 import { useTheme } from '@/theme';
 import {
   listEntries,
@@ -35,7 +43,10 @@ import {
   monthlyActivity,
   ratingDistribution,
   summary,
+  topDirectors,
   topRated,
+  tvSeasonHoursWatched,
+  type Bucket,
   type GenreBucket,
   type GenreMap,
   type StatsEntry,
@@ -44,9 +55,8 @@ import {
 
 const BAR_TRACK_HEIGHT = 8;
 const BAR_TRACK_HEIGHT_LG = 10;
-const ACTIVITY_BAR_MAX_HEIGHT = 96;
-const ACTIVITY_BAR_WIDTH = 12;
 const TOP_GENRE_LIMIT = 8;
+const TOP_DIRECTOR_LIMIT = 8;
 const TOP_RATED_LIMIT = 5;
 const ACTIVITY_MONTHS = 12;
 const BACKFILL_CONCURRENCY = 6;
@@ -54,8 +64,6 @@ const BACKFILL_CONCURRENCY = 6;
 const BAR_ANIM_DURATION = 500;
 const BAR_ANIM_STAGGER = 40;
 const easeOutCubic = Easing.out(Easing.cubic);
-
-const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 export default function YouScreen() {
   const t = useTheme();
@@ -126,13 +134,20 @@ export default function YouScreen() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const cacheKeys = new Set(cacheRef.current.map((c) => `${c.mediaType}:${c.tmdbId}`));
+    // Pre-migration TV rows have empty seasons — re-enqueue them so TV hours can populate.
+    const cacheByKey = new Map(
+      cacheRef.current.map((c) => [`${c.mediaType}:${c.tmdbId}`, c]),
+    );
     const todo: { tmdbId: number; mediaType: 'movie' | 'tv' }[] = [];
     const seen = new Set<string>();
     for (const e of entries) {
       const mt: 'movie' | 'tv' = e.mediaType === 'movie' ? 'movie' : 'tv';
       const key = `${mt}:${e.tmdbId}`;
-      if (cacheKeys.has(key) || seen.has(key)) continue;
+      if (seen.has(key)) continue;
+      const existing = cacheByKey.get(key);
+      const needsSeasonsBackfill =
+        existing && mt === 'tv' && existing.seasons.length === 0;
+      if (existing && !needsSeasonsBackfill) continue;
       seen.add(key);
       todo.push({ tmdbId: e.tmdbId, mediaType: mt });
     }
@@ -146,6 +161,16 @@ export default function YouScreen() {
     let idx = 0;
     const inFlight: Promise<void>[] = [];
 
+    const mergeRow = (prev: MediaCacheRow[], row: MediaCacheRow): MediaCacheRow[] => {
+      const idx = prev.findIndex(
+        (c) => c.tmdbId === row.tmdbId && c.mediaType === row.mediaType,
+      );
+      if (idx === -1) return [...prev, row];
+      const next = prev.slice();
+      next[idx] = row;
+      return next;
+    };
+
     const fetchOne = async (item: { tmdbId: number; mediaType: 'movie' | 'tv' }) => {
       try {
         if (item.mediaType === 'movie') {
@@ -157,9 +182,10 @@ export default function YouScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.runtime,
             director: d.director,
+            seasons: [],
           });
           if (controller.signal.aborted) return;
-          setCache((prev) => [...prev, row]);
+          setCache((prev) => mergeRow(prev, row));
         } else {
           const d = await getTvDetails(item.tmdbId, controller.signal);
           if (controller.signal.aborted) return;
@@ -169,9 +195,13 @@ export default function YouScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.episodeRuntime,
             director: d.creators,
+            seasons: d.seasons.map((s) => ({
+              seasonNumber: s.seasonNumber,
+              episodeCount: s.episodeCount,
+            })),
           });
           if (controller.signal.aborted) return;
-          setCache((prev) => [...prev, row]);
+          setCache((prev) => mergeRow(prev, row));
         }
       } catch {
         // Silent: best-effort; next time the screen mounts it'll retry.
@@ -233,6 +263,14 @@ export default function YouScreen() {
     () => filmHoursWatched(statsEntries, statsCache),
     [statsEntries, statsCache],
   );
+  const tvHours = useMemo(
+    () => tvSeasonHoursWatched(statsEntries, statsCache),
+    [statsEntries, statsCache],
+  );
+  const directorBuckets = useMemo<Bucket[]>(
+    () => topDirectors(statsEntries, statsCache, TOP_DIRECTOR_LIMIT),
+    [statsEntries, statsCache],
+  );
 
   // The full diary entry record for top-rated cards (so we have title + poster).
   const topRatedEntries = useMemo(() => {
@@ -277,6 +315,7 @@ export default function YouScreen() {
           watchlistCount={watchlistCount}
           standoutsCount={standoutsCount}
           filmHours={filmHours}
+          tvHours={tvHours}
           backfilling={backfilling}
         />
 
@@ -289,7 +328,7 @@ export default function YouScreen() {
 
         <SectionTitle title="Top genres" />
         {genreMaps && genreBuckets.length > 0 ? (
-          <TopGenres
+          <GenreDonut
             buckets={genreBuckets}
             onPress={(b) =>
               router.push({
@@ -316,8 +355,21 @@ export default function YouScreen() {
           </Text>
         )}
 
+        <SectionTitle title="Top directors" />
+        {directorBuckets.length > 0 ? (
+          <TopDirectors buckets={directorBuckets} />
+        ) : backfilling ? (
+          <Text variant="caption" tone="muted" style={{ paddingHorizontal: t.spacing.lg }}>
+            Indexing {backfillRemaining} {backfillRemaining === 1 ? 'entry' : 'entries'}…
+          </Text>
+        ) : (
+          <Text variant="caption" tone="muted" style={{ paddingHorizontal: t.spacing.lg }}>
+            No director data yet.
+          </Text>
+        )}
+
         <SectionTitle title="Activity" />
-        <ActivityChart activity={activity} />
+        <ActivityLineChart activity={activity} />
 
         {decadeBuckets.length > 0 ? (
           <>
@@ -399,65 +451,28 @@ function AnimatedHBar({
   );
 }
 
-function AnimatedVBar({
-  progress,
-  totalMs,
-  index,
-  ratio,
-  width,
-  color,
-  radius,
-}: {
-  progress: SharedValue<number>;
-  totalMs: number;
-  index: number;
-  ratio: number;
-  width: number;
-  color: string;
-  radius: number;
-}) {
-  const animStyle = useAnimatedStyle(() => {
-    const elapsed = progress.value * totalMs;
-    const localMs = Math.max(
-      0,
-      Math.min(BAR_ANIM_DURATION, elapsed - index * BAR_ANIM_STAGGER),
-    );
-    const local = easeOutCubic(localMs / BAR_ANIM_DURATION);
-    const h = ratio * local * ACTIVITY_BAR_MAX_HEIGHT;
-    return { height: local > 0 ? Math.max(2, h) : 0 };
-  });
-  return (
-    <Animated.View
-      style={[
-        {
-          width,
-          backgroundColor: color,
-          borderTopLeftRadius: radius,
-          borderTopRightRadius: radius,
-        },
-        animStyle,
-      ]}
-    />
-  );
-}
-
 function SummaryCard({
   sum,
   watchlistCount,
   standoutsCount,
   filmHours,
+  tvHours,
   backfilling,
 }: {
   sum: ReturnType<typeof summary>;
   watchlistCount: number;
   standoutsCount: number;
   filmHours: number;
+  tvHours: number;
   backfilling: boolean;
 }) {
   const t = useTheme();
-  const hoursLabel = backfilling
+  const filmHoursLabel = backfilling
     ? `${Math.round(filmHours)}h+ (indexing)`
     : `${Math.round(filmHours)}h`;
+  const tvHoursLabel = backfilling
+    ? `${Math.round(tvHours)}h+ (indexing)`
+    : `${Math.round(tvHours)}h`;
   return (
     <View
       style={[
@@ -522,7 +537,16 @@ function SummaryCard({
           Film hours
         </Text>
         <Text variant="caption" tone="muted">
-          {hoursLabel}
+          {filmHoursLabel}
+        </Text>
+      </View>
+
+      <View style={[styles.avgRow, { marginTop: t.spacing.xs, gap: t.spacing.sm }]}>
+        <Text variant="label" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}>
+          TV hours
+        </Text>
+        <Text variant="caption" tone="muted">
+          {tvHoursLabel}
         </Text>
       </View>
     </View>
@@ -573,27 +597,14 @@ function RatingHistogram({
   );
 }
 
-function TopGenres({
-  buckets,
-  onPress,
-}: {
-  buckets: GenreBucket[];
-  onPress: (b: GenreBucket) => void;
-}) {
+function TopDirectors({ buckets }: { buckets: Bucket[] }) {
   const t = useTheme();
   const max = Math.max(1, ...buckets.map((b) => b.count));
   const { progress, totalMs } = useChartProgress(buckets.length);
   return (
     <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
       {buckets.map((b, i) => (
-        <Pressable
-          key={`${b.dominantMediaType}-${b.dominantGenreId}-${b.label}`}
-          onPress={() => onPress(b)}
-          style={({ pressed }) => [
-            styles.barRow,
-            { gap: t.spacing.sm, opacity: pressed ? t.opacity.pressed : 1 },
-          ]}
-        >
+        <View key={b.label} style={[styles.barRow, { gap: t.spacing.sm }]}>
           <Text variant="caption" style={{ width: 88 }} numberOfLines={1}>
             {b.label}
           </Text>
@@ -619,51 +630,6 @@ function TopGenres({
           </View>
           <Text variant="caption" tone="muted" style={{ width: 32, textAlign: 'right' }}>
             {b.count}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-function ActivityChart({
-  activity,
-}: {
-  activity: { year: number; month: number; count: number }[];
-}) {
-  const t = useTheme();
-  const max = Math.max(1, ...activity.map((a) => a.count));
-  const { progress, totalMs } = useChartProgress(activity.length);
-  return (
-    <View
-      style={[
-        styles.activityRow,
-        {
-          paddingHorizontal: t.spacing.lg,
-          gap: t.spacing.sm,
-          height: ACTIVITY_BAR_MAX_HEIGHT + 24,
-        },
-      ]}
-    >
-      {activity.map((a, i) => (
-        <View key={`${a.year}-${a.month}`} style={styles.activityBarCol}>
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <AnimatedVBar
-              progress={progress}
-              totalMs={totalMs}
-              index={i}
-              ratio={a.count / max}
-              width={ACTIVITY_BAR_WIDTH}
-              color={t.colors.accent.base}
-              radius={t.radii.sm}
-            />
-          </View>
-          <Text
-            variant="caption"
-            tone="muted"
-            style={{ marginTop: t.spacing.xxs, textAlign: 'center' }}
-          >
-            {MONTH_LETTERS[a.month]}
           </Text>
         </View>
       ))}
@@ -784,8 +750,6 @@ const styles = StyleSheet.create({
   avgRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   barRow: { flexDirection: 'row', alignItems: 'center' },
   barTrack: { flex: 1, overflow: 'hidden' },
-  activityRow: { flexDirection: 'row', alignItems: 'stretch' },
-  activityBarCol: { flex: 1, alignItems: 'center' },
   topRatedRow: { flexDirection: 'row', alignItems: 'center' },
   topRatedBody: { flex: 1, minWidth: 0 },
 });

@@ -6,6 +6,8 @@ import {
   topRated,
   genreDistribution,
   filmHoursWatched,
+  tvSeasonHoursWatched,
+  topDirectors,
   type StatsEntry,
   type StatsCacheRow,
   type GenreMap,
@@ -14,6 +16,7 @@ import {
 function entry(overrides: Partial<StatsEntry> & Pick<StatsEntry, 'tmdbId'>): StatsEntry {
   return {
     mediaType: 'movie',
+    seasonNumber: null,
     year: '2024',
     watchedDate: '2024-06-15',
     rating: 4,
@@ -27,6 +30,8 @@ function cacheRow(
   return {
     genreIds: [],
     runtime: null,
+    director: null,
+    seasons: [],
     ...overrides,
   };
 }
@@ -403,5 +408,247 @@ describe('filmHoursWatched', () => {
       [cacheRow({ tmdbId: 100, mediaType: 'movie', runtime: null })],
     );
     expect(hours).toBe(0);
+  });
+});
+
+// ----------- tvSeasonHoursWatched -----------
+
+describe('tvSeasonHoursWatched', () => {
+  test('empty entries returns 0', () => {
+    expect(tvSeasonHoursWatched([], [])).toBe(0);
+  });
+
+  test('single matched season → episodeCount × runtime / 60', () => {
+    const hours = tvSeasonHoursWatched(
+      [entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 })],
+      [
+        cacheRow({
+          tmdbId: 500,
+          mediaType: 'tv',
+          runtime: 50,
+          seasons: [{ seasonNumber: 1, episodeCount: 10 }],
+        }),
+      ],
+    );
+    // 10 episodes × 50 min = 500 min = 8.333... hours
+    expect(hours).toBeCloseTo(500 / 60, 5);
+  });
+
+  test('skips when cache row is missing', () => {
+    const hours = tvSeasonHoursWatched(
+      [entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 })],
+      [],
+    );
+    expect(hours).toBe(0);
+  });
+
+  test('skips when cache row has empty seasons (pre-migration)', () => {
+    const hours = tvSeasonHoursWatched(
+      [entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 })],
+      [cacheRow({ tmdbId: 500, mediaType: 'tv', runtime: 50, seasons: [] })],
+    );
+    expect(hours).toBe(0);
+  });
+
+  test('skips when runtime is null', () => {
+    const hours = tvSeasonHoursWatched(
+      [entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 })],
+      [
+        cacheRow({
+          tmdbId: 500,
+          mediaType: 'tv',
+          runtime: null,
+          seasons: [{ seasonNumber: 1, episodeCount: 10 }],
+        }),
+      ],
+    );
+    expect(hours).toBe(0);
+  });
+
+  test('skips when matching season is not in cache', () => {
+    const hours = tvSeasonHoursWatched(
+      [entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 99 })],
+      [
+        cacheRow({
+          tmdbId: 500,
+          mediaType: 'tv',
+          runtime: 50,
+          seasons: [{ seasonNumber: 1, episodeCount: 10 }],
+        }),
+      ],
+    );
+    expect(hours).toBe(0);
+  });
+
+  test('sums multiple seasons of the same show', () => {
+    const hours = tvSeasonHoursWatched(
+      [
+        entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 }),
+        entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 2 }),
+      ],
+      [
+        cacheRow({
+          tmdbId: 500,
+          mediaType: 'tv',
+          runtime: 60,
+          seasons: [
+            { seasonNumber: 1, episodeCount: 8 },
+            { seasonNumber: 2, episodeCount: 10 },
+          ],
+        }),
+      ],
+    );
+    // (8 + 10) × 60 = 1080 min = 18 hours
+    expect(hours).toBe(18);
+  });
+
+  test('ignores movie entries entirely', () => {
+    const hours = tvSeasonHoursWatched(
+      [
+        entry({ tmdbId: 100, mediaType: 'movie' }),
+        entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 }),
+      ],
+      [
+        cacheRow({ tmdbId: 100, mediaType: 'movie', runtime: 120 }),
+        cacheRow({
+          tmdbId: 500,
+          mediaType: 'tv',
+          runtime: 30,
+          seasons: [{ seasonNumber: 1, episodeCount: 12 }],
+        }),
+      ],
+    );
+    // 12 × 30 = 360 min = 6 hours (only TV)
+    expect(hours).toBe(6);
+  });
+});
+
+// ----------- topDirectors -----------
+
+describe('topDirectors', () => {
+  test('empty inputs return []', () => {
+    expect(topDirectors([], [], 5)).toEqual([]);
+  });
+
+  test('limit <= 0 returns []', () => {
+    expect(
+      topDirectors(
+        [entry({ tmdbId: 1, mediaType: 'movie' })],
+        [cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'A' })],
+        0,
+      ),
+    ).toEqual([]);
+  });
+
+  test('single director with single film → count 1', () => {
+    const result = topDirectors(
+      [entry({ tmdbId: 1, mediaType: 'movie' })],
+      [cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'Greta Gerwig' })],
+      5,
+    );
+    expect(result).toEqual([{ label: 'Greta Gerwig', count: 1 }]);
+  });
+
+  test("' & '-joined director string produces two buckets", () => {
+    const result = topDirectors(
+      [entry({ tmdbId: 1, mediaType: 'movie' })],
+      [cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'Joel Coen & Ethan Coen' })],
+      5,
+    );
+    expect(result).toEqual([
+      { label: 'Ethan Coen', count: 1 },
+      { label: 'Joel Coen', count: 1 },
+    ]);
+  });
+
+  test('cross-entry dedup is case-insensitive, first-seen casing wins', () => {
+    const result = topDirectors(
+      [
+        entry({ tmdbId: 1, mediaType: 'movie' }),
+        entry({ tmdbId: 2, mediaType: 'movie' }),
+      ],
+      [
+        cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'Greta Gerwig' }),
+        cacheRow({ tmdbId: 2, mediaType: 'movie', director: 'greta gerwig' }),
+      ],
+      5,
+    );
+    expect(result).toEqual([{ label: 'Greta Gerwig', count: 2 }]);
+  });
+
+  test('skips null / empty / whitespace director', () => {
+    const result = topDirectors(
+      [
+        entry({ tmdbId: 1, mediaType: 'movie' }),
+        entry({ tmdbId: 2, mediaType: 'movie' }),
+        entry({ tmdbId: 3, mediaType: 'movie' }),
+      ],
+      [
+        cacheRow({ tmdbId: 1, mediaType: 'movie', director: null }),
+        cacheRow({ tmdbId: 2, mediaType: 'movie', director: '   ' }),
+        cacheRow({ tmdbId: 3, mediaType: 'movie', director: 'Real Director' }),
+      ],
+      5,
+    );
+    expect(result).toEqual([{ label: 'Real Director', count: 1 }]);
+  });
+
+  test('sorts by count DESC, ties by name ASC', () => {
+    const result = topDirectors(
+      [
+        entry({ tmdbId: 1, mediaType: 'movie' }),
+        entry({ tmdbId: 2, mediaType: 'movie' }),
+        entry({ tmdbId: 3, mediaType: 'movie' }),
+        entry({ tmdbId: 4, mediaType: 'movie' }),
+      ],
+      [
+        cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'Zhang Yimou' }),
+        cacheRow({ tmdbId: 2, mediaType: 'movie', director: 'Akira Kurosawa' }),
+        cacheRow({ tmdbId: 3, mediaType: 'movie', director: 'Akira Kurosawa' }),
+        cacheRow({ tmdbId: 4, mediaType: 'movie', director: 'Bong Joon-ho' }),
+      ],
+      5,
+    );
+    expect(result).toEqual([
+      { label: 'Akira Kurosawa', count: 2 },
+      { label: 'Bong Joon-ho', count: 1 },
+      { label: 'Zhang Yimou', count: 1 },
+    ]);
+  });
+
+  test('honours the limit', () => {
+    const result = topDirectors(
+      [
+        entry({ tmdbId: 1, mediaType: 'movie' }),
+        entry({ tmdbId: 2, mediaType: 'movie' }),
+        entry({ tmdbId: 3, mediaType: 'movie' }),
+      ],
+      [
+        cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'A Director' }),
+        cacheRow({ tmdbId: 2, mediaType: 'movie', director: 'B Director' }),
+        cacheRow({ tmdbId: 3, mediaType: 'movie', director: 'C Director' }),
+      ],
+      2,
+    );
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.label)).toEqual(['A Director', 'B Director']);
+  });
+
+  test('aggregates TV creators alongside movie directors', () => {
+    const result = topDirectors(
+      [
+        entry({ tmdbId: 1, mediaType: 'movie' }),
+        entry({ tmdbId: 500, mediaType: 'tv_season', seasonNumber: 1 }),
+      ],
+      [
+        cacheRow({ tmdbId: 1, mediaType: 'movie', director: 'David Lynch' }),
+        cacheRow({ tmdbId: 500, mediaType: 'tv', director: 'David Lynch & Mark Frost' }),
+      ],
+      5,
+    );
+    expect(result).toEqual([
+      { label: 'David Lynch', count: 2 },
+      { label: 'Mark Frost', count: 1 },
+    ]);
   });
 });

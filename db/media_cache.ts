@@ -1,11 +1,17 @@
 import * as SQLite from 'expo-sqlite';
 
+export type CachedSeason = {
+  seasonNumber: number;
+  episodeCount: number;
+};
+
 export type MediaCacheRow = {
   tmdbId: number;
   mediaType: 'movie' | 'tv';
   genreIds: number[];
   runtime: number | null;
   director: string | null;
+  seasons: CachedSeason[];
   fetchedAt: number;
 };
 
@@ -29,6 +35,12 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
           PRIMARY KEY (tmdb_id, media_type)
         );
       `);
+      const cols = await db.getAllAsync<{ name: string }>(
+        `PRAGMA table_info(media_cache)`,
+      );
+      if (!cols.some((c) => c.name === 'seasons_json')) {
+        await db.execAsync(`ALTER TABLE media_cache ADD COLUMN seasons_json TEXT`);
+      }
       return db;
     })();
   }
@@ -41,8 +53,28 @@ type Row = {
   genre_ids: string;
   runtime: number | null;
   director: string | null;
+  seasons_json: string | null;
   fetched_at: number;
 };
+
+function parseSeasons(json: string | null): CachedSeason[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (s: unknown): s is CachedSeason =>
+          !!s &&
+          typeof s === 'object' &&
+          typeof (s as CachedSeason).seasonNumber === 'number' &&
+          typeof (s as CachedSeason).episodeCount === 'number',
+      )
+      .map((s) => ({ seasonNumber: s.seasonNumber, episodeCount: s.episodeCount }));
+  } catch {
+    return [];
+  }
+}
 
 function rowToCache(row: Row): MediaCacheRow {
   let ids: number[] = [];
@@ -60,6 +92,7 @@ function rowToCache(row: Row): MediaCacheRow {
     genreIds: ids,
     runtime: row.runtime,
     director: row.director,
+    seasons: parseSeasons(row.seasons_json),
     fetchedAt: row.fetched_at,
   };
 }
@@ -68,17 +101,21 @@ export async function upsertMediaCache(item: NewMediaCacheRow): Promise<MediaCac
   const db = await getDb();
   const fetchedAt = Date.now();
   await db.runAsync(
-    `INSERT OR REPLACE INTO media_cache (tmdb_id, media_type, genre_ids, runtime, director, fetched_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO media_cache (tmdb_id, media_type, genre_ids, runtime, director, seasons_json, fetched_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     item.tmdbId,
     item.mediaType,
     JSON.stringify(item.genreIds ?? []),
     item.runtime,
     item.director,
+    JSON.stringify(item.seasons ?? []),
     fetchedAt,
   );
   return { ...item, fetchedAt };
 }
+
+const SELECT_COLS =
+  'tmdb_id, media_type, genre_ids, runtime, director, seasons_json, fetched_at';
 
 export async function getMediaCache(
   tmdbId: number,
@@ -86,7 +123,7 @@ export async function getMediaCache(
 ): Promise<MediaCacheRow | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
-    'SELECT tmdb_id, media_type, genre_ids, runtime, director, fetched_at FROM media_cache WHERE tmdb_id = ? AND media_type = ?',
+    `SELECT ${SELECT_COLS} FROM media_cache WHERE tmdb_id = ? AND media_type = ?`,
     tmdbId,
     mediaType,
   );
@@ -96,7 +133,7 @@ export async function getMediaCache(
 export async function listAllCache(): Promise<MediaCacheRow[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
-    'SELECT tmdb_id, media_type, genre_ids, runtime, director, fetched_at FROM media_cache',
+    `SELECT ${SELECT_COLS} FROM media_cache`,
   );
   return rows.map(rowToCache);
 }

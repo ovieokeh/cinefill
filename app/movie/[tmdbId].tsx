@@ -127,6 +127,7 @@ export default function MovieScreen() {
             genreIds: d.genres.map((g) => g.id),
             runtime: d.runtime,
             director: d.director,
+            seasons: [],
           }).catch((err) => console.warn('media_cache upsert failed', err));
         }
       } catch (e: unknown) {

@@ -7,10 +7,13 @@ import type { MediaCacheRow } from '@/db/media_cache';
 
 export type StatsEntry = Pick<
   DiaryEntry,
-  'tmdbId' | 'mediaType' | 'year' | 'watchedDate' | 'rating'
+  'tmdbId' | 'mediaType' | 'seasonNumber' | 'year' | 'watchedDate' | 'rating'
 >;
 
-export type StatsCacheRow = Pick<MediaCacheRow, 'tmdbId' | 'mediaType' | 'genreIds' | 'runtime'>;
+export type StatsCacheRow = Pick<
+  MediaCacheRow,
+  'tmdbId' | 'mediaType' | 'genreIds' | 'runtime' | 'director' | 'seasons'
+>;
 
 export type GenreMap = Map<number, string>;
 
@@ -228,6 +231,75 @@ export function filmHoursWatched(entries: StatsEntry[], cache: StatsCacheRow[]):
     totalMinutes += row.runtime;
   }
   return totalMinutes / 60;
+}
+
+// ---------- tvSeasonHoursWatched ----------
+
+export function tvSeasonHoursWatched(
+  entries: StatsEntry[],
+  cache: StatsCacheRow[],
+): number {
+  const cacheByKey = new Map<string, StatsCacheRow>();
+  for (const c of cache) {
+    cacheByKey.set(`${c.mediaType}:${c.tmdbId}`, c);
+  }
+  let totalMinutes = 0;
+  for (const e of entries) {
+    if (e.mediaType !== 'tv_season') continue;
+    if (e.seasonNumber == null) continue;
+    const row = cacheByKey.get(`tv:${e.tmdbId}`);
+    if (!row || row.runtime == null) continue;
+    const season = row.seasons.find((s) => s.seasonNumber === e.seasonNumber);
+    if (!season) continue;
+    totalMinutes += season.episodeCount * row.runtime;
+  }
+  return totalMinutes / 60;
+}
+
+// ---------- topDirectors ----------
+
+export function topDirectors(
+  entries: StatsEntry[],
+  cache: StatsCacheRow[],
+  limit: number,
+): Bucket[] {
+  if (limit <= 0) return [];
+
+  const cacheByKey = new Map<string, StatsCacheRow>();
+  for (const c of cache) {
+    cacheByKey.set(`${c.mediaType}:${c.tmdbId}`, c);
+  }
+
+  // key (lowercased) → { display, count }
+  const byKey = new Map<string, { display: string; count: number }>();
+  for (const e of entries) {
+    const cacheMt: 'movie' | 'tv' = e.mediaType === 'movie' ? 'movie' : 'tv';
+    const row = cacheByKey.get(`${cacheMt}:${e.tmdbId}`);
+    if (!row || !row.director) continue;
+    const trimmedWhole = row.director.trim();
+    if (trimmedWhole.length === 0) continue;
+    for (const piece of trimmedWhole.split(' & ')) {
+      const name = piece.trim();
+      if (name.length === 0) continue;
+      const key = name.toLowerCase();
+      const current = byKey.get(key);
+      if (current) {
+        current.count++;
+      } else {
+        byKey.set(key, { display: name, count: 1 });
+      }
+    }
+  }
+
+  const buckets: Bucket[] = [...byKey.values()].map(({ display, count }) => ({
+    label: display,
+    count,
+  }));
+  buckets.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.label.localeCompare(b.label);
+  });
+  return buckets.slice(0, limit);
 }
 
 // ---------- helpers (not exported) ----------

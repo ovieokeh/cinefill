@@ -37,6 +37,20 @@ export const colors = {
     highlight: '#FFFFFF14',
     highlightTransparent: '#FFFFFF00',
   },
+  chart: {
+    // Donut-slice / legend-swatch palette. Ordered from accent-anchored warm to
+    // muted-neutral cool so the dominant slice always reads as the brand colour.
+    series: [
+      '#E0B354', // accent.base
+      '#D49E47',
+      '#C99C42', // accent.pressed
+      '#B58836',
+      '#9C7129',
+      '#7C5A24',
+      '#5D636C',
+      '#3A424D',
+    ],
+  },
 } as const;
 
 export const spacing = {
