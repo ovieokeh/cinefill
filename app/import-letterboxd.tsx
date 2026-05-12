@@ -182,7 +182,6 @@ export default function ImportLetterboxdScreen() {
     const { diaryInserts, watchlistInserts, unmatchedTitles } = assembleInserts(
       phase.parsed,
       matches,
-      phase.reviews,
     );
 
     const tmdbIds = diaryInserts.map((d) => d.tmdbId);

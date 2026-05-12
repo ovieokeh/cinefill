@@ -24,13 +24,39 @@ export type MatchResult =
     }
   | { status: 'unmatched'; reason: 'no-results' | 'aborted' };
 
+// A diary row with the review text from reviews.csv attached (empty string if none).
+export type MergedDiaryRow = DiaryRow & { review: string };
+
 export type ParsedExport = {
-  diary: DiaryRow[]; // diary + reviews merged + non-overlapping watched
+  diary: MergedDiaryRow[]; // diary ∪ standalone-reviews ∪ non-overlapping-watched
   watchlist: WatchlistRow[];
 };
 
 export function matchKey(t: MatchTarget): string {
   return `${t.name}|${t.year ?? ''}`;
+}
+
+// ---------- key helpers ----------
+// Letterboxd's "Letterboxd URI" column is a per-row hash, NOT a per-film id —
+// the same film has different URIs in diary.csv, reviews.csv, watched.csv, etc.
+// We dedupe on (name, year, watchedDate) for entry-level identity (one diary
+// entry can have a paired review row in reviews.csv), and on (name, year) for
+// film-level identity (watched.csv vs diary, watchlist).
+
+function normName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function filmKey(row: { name: string; year: string | null }): string {
+  return `${normName(row.name)}|${row.year ?? ''}`;
+}
+
+function dayDistance(a: string, b: string): number {
+  // ISO date string distance in days; falls back to Infinity for unparseable.
+  const ta = Date.parse(a);
+  const tb = Date.parse(b);
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return Infinity;
+  return Math.abs(ta - tb) / (1000 * 60 * 60 * 24);
 }
 
 // ---------- buildParsedExport ----------
@@ -41,29 +67,79 @@ export function buildParsedExport(input: {
   watched: WatchedRow[];
   watchlist: WatchlistRow[];
 }): ParsedExport {
-  const reviewsByUri = new Map<string, ReviewRow>();
-  for (const r of input.reviews) {
-    if (r.uri) reviewsByUri.set(r.uri, r);
+  // Group diary rows by film (name + year). A film can legitimately have
+  // multiple diary rows (rewatches); we preserve them all.
+  const diaryByFilm = new Map<string, MergedDiaryRow[]>();
+  for (const d of input.diary) {
+    if (!d.name) continue;
+    const fk = filmKey(d);
+    const list = diaryByFilm.get(fk);
+    const row: MergedDiaryRow = { ...d, review: '' };
+    if (list) list.push(row);
+    else diaryByFilm.set(fk, [row]);
   }
 
-  // Diary rows first; attach review.note via URI when available.
-  const diaryUris = new Set<string>();
-  const merged: DiaryRow[] = input.diary.map((d) => {
-    if (d.uri) diaryUris.add(d.uri);
-    return d;
-  });
-
-  // Reviews-without-diary become standalone diary rows.
+  // Group reviews by film too. Letterboxd's `Watched Date` for the review
+  // row often diverges from the diary row's `Watched Date` (the user filled
+  // in a different date when posting the review later). So we pair each
+  // review to its closest-date unpaired diary row within the same film.
+  const reviewsByFilm = new Map<string, ReviewRow[]>();
   for (const r of input.reviews) {
-    if (!r.uri || diaryUris.has(r.uri)) continue;
-    diaryUris.add(r.uri);
-    merged.push(r);
+    if (!r.name || !r.review) continue;
+    const fk = filmKey(r);
+    const list = reviewsByFilm.get(fk);
+    if (list) list.push(r);
+    else reviewsByFilm.set(fk, [r]);
   }
 
-  // Watched rows that have no diary equivalent → fallback entry with date=Date, no rating.
+  const consumedReviewIdx = new Set<string>(); // `${fk}|${arrayIndex}`
+  for (const [fk, diaryRows] of diaryByFilm) {
+    const reviews = reviewsByFilm.get(fk);
+    if (!reviews || reviews.length === 0) continue;
+    for (let ri = 0; ri < reviews.length; ri++) {
+      const r = reviews[ri];
+      let best: MergedDiaryRow | null = null;
+      let bestDiff = Infinity;
+      for (const d of diaryRows) {
+        if (d.review) continue; // one review per diary row
+        const diff = dayDistance(d.watchedDate, r.watchedDate);
+        if (diff < bestDiff) {
+          best = d;
+          bestDiff = diff;
+        }
+      }
+      if (best) {
+        best.review = r.review;
+        consumedReviewIdx.add(`${fk}|${ri}`);
+      }
+    }
+  }
+
+  // Emit merged diary rows.
+  const merged: MergedDiaryRow[] = [];
+  for (const list of diaryByFilm.values()) {
+    for (const row of list) merged.push(row);
+  }
+
+  // Reviews that didn't pair (more reviews than diary rows, or film had no
+  // diary entry at all) become standalone diary rows.
+  for (const [fk, reviews] of reviewsByFilm) {
+    for (let ri = 0; ri < reviews.length; ri++) {
+      if (consumedReviewIdx.has(`${fk}|${ri}`)) continue;
+      const r = reviews[ri];
+      merged.push({ ...r });
+    }
+  }
+
+  // watched.csv is a superset of diary by film. Drop any watched row whose
+  // film is already represented; add the rest as bare diary entries.
+  const filmsCovered = new Set<string>();
+  for (const row of merged) filmsCovered.add(filmKey(row));
   for (const w of input.watched) {
-    if (!w.uri || diaryUris.has(w.uri)) continue;
-    diaryUris.add(w.uri);
+    if (!w.name) continue;
+    const fk = filmKey(w);
+    if (filmsCovered.has(fk)) continue;
+    filmsCovered.add(fk);
     merged.push({
       date: w.date,
       name: w.name,
@@ -71,27 +147,21 @@ export function buildParsedExport(input: {
       uri: w.uri,
       rating: 0,
       watchedDate: w.date,
+      review: '',
     });
   }
 
-  // Dedupe watchlist by URI in-place, preserving first occurrence.
+  // Watchlist dedup by film (URI varies row-to-row).
   const wlSeen = new Set<string>();
   const watchlist = input.watchlist.filter((w) => {
-    if (!w.uri || wlSeen.has(w.uri)) return false;
-    wlSeen.add(w.uri);
+    if (!w.name) return false;
+    const fk = filmKey(w);
+    if (wlSeen.has(fk)) return false;
+    wlSeen.add(fk);
     return true;
   });
 
   return { diary: merged, watchlist };
-}
-
-// Lookup helper for tests + the wizard's review-merge display.
-export function reviewByUri(reviews: ReviewRow[]): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const r of reviews) {
-    if (r.uri && r.review) out.set(r.uri, r.review);
-  }
-  return out;
 }
 
 // ---------- collectMatchTargets ----------
@@ -220,13 +290,11 @@ export function pickBestMatch(
 export function assembleInserts(
   parsed: ParsedExport,
   matches: Map<string, MatchResult>,
-  reviews: ReviewRow[],
 ): {
   diaryInserts: NewDiaryEntry[];
   watchlistInserts: NewWatchlistItem[];
   unmatchedTitles: string[];
 } {
-  const reviewNotes = reviewByUri(reviews);
   const diaryInserts: NewDiaryEntry[] = [];
   const watchlistInserts: NewWatchlistItem[] = [];
   const unmatched = new Map<string, string>(); // key → display name
@@ -248,7 +316,7 @@ export function assembleInserts(
       posterPath: m.posterPath,
       watchedDate: d.watchedDate || d.date,
       rating: d.rating,
-      note: (reviewNotes.get(d.uri) ?? '').trim(),
+      note: d.review.trim(),
     });
   }
 

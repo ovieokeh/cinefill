@@ -231,6 +231,64 @@ export async function addEntries(entries: NewDiaryEntry[]): Promise<void> {
   });
 }
 
+/** Destructive: removes every diary entry. Returns the number deleted. */
+export async function deleteAllEntries(): Promise<number> {
+  const db = await getDb();
+  const result = await db.runAsync(`DELETE FROM entries`);
+  return result.changes ?? 0;
+}
+
+/**
+ * Collapse movie entries that share `(tmdb_id, watched_date)` down to a single row.
+ * Used to repair imports that emitted both a no-note diary row and a with-note review row
+ * for the same film+date. Keep rule (per group): longest `note` wins; tiebreak by higher
+ * `rating`; tiebreak by lower `id` (oldest). Returns the number of rows removed.
+ */
+export async function dedupeMovieEntries(): Promise<{ deleted: number }> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    id: number;
+    tmdb_id: number;
+    watched_date: string;
+    note: string;
+    rating: number;
+  }>(
+    `SELECT id, tmdb_id, watched_date, note, rating
+     FROM entries
+     WHERE media_type = 'movie'
+     ORDER BY id ASC`,
+  );
+  const groups = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const k = `${r.tmdb_id}|${r.watched_date}`;
+    const list = groups.get(k);
+    if (list) list.push(r);
+    else groups.set(k, [r]);
+  }
+  const toDelete: number[] = [];
+  for (const list of groups.values()) {
+    if (list.length <= 1) continue;
+    list.sort((a, b) => {
+      const lenDiff = (b.note?.length ?? 0) - (a.note?.length ?? 0);
+      if (lenDiff !== 0) return lenDiff;
+      const ratingDiff = b.rating - a.rating;
+      if (ratingDiff !== 0) return ratingDiff;
+      return a.id - b.id;
+    });
+    for (let i = 1; i < list.length; i++) toDelete.push(list[i].id);
+  }
+  if (toDelete.length === 0) return { deleted: 0 };
+  await db.withTransactionAsync(async () => {
+    const CHUNK = 100;
+    for (let i = 0; i < toDelete.length; i += CHUNK) {
+      const chunk = toDelete.slice(i, i + CHUNK);
+      const placeholders = chunk.map(() => '?').join(',');
+      await db.runAsync(`DELETE FROM entries WHERE id IN (${placeholders})`, ...chunk);
+    }
+  });
+  return { deleted: toDelete.length };
+}
+
 export async function listExistingMovieWatchKeys(
   tmdbIds: number[],
 ): Promise<Set<string>> {

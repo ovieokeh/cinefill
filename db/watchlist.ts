@@ -94,6 +94,13 @@ export async function addToWatchlist(item: NewWatchlistItem): Promise<WatchlistI
   return { ...item, addedAt };
 }
 
+/** Destructive: removes every watchlist row. Returns the number deleted. */
+export async function deleteAllWatchlist(): Promise<number> {
+  const db = await getDb();
+  const result = await db.runAsync(`DELETE FROM watchlist`);
+  return result.changes ?? 0;
+}
+
 export async function addToWatchlistBatch(items: NewWatchlistItem[]): Promise<void> {
   if (items.length === 0) return;
   const db = await getDb();

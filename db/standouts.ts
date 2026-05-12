@@ -129,3 +129,10 @@ export async function listStandoutsForSeason(
   );
   return rows.map(rowToStandout);
 }
+
+/** Destructive: removes every standout. Returns the number deleted. */
+export async function deleteAllStandouts(): Promise<number> {
+  const db = await getDb();
+  const result = await db.runAsync(`DELETE FROM tv_episode_standouts`);
+  return result.changes ?? 0;
+}
