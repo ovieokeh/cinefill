@@ -54,6 +54,14 @@ export function EntryRow({ entry }: { entry: DiaryEntry }) {
             </Text>
           ) : null}
         </View>
+        {entry.mediaType === 'tv_season' && entry.seasonNumber != null ? (
+          <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+            Season {entry.seasonNumber}
+            {entry.seasonName && entry.seasonName !== `Season ${entry.seasonNumber}`
+              ? ` · ${entry.seasonName}`
+              : ''}
+          </Text>
+        ) : null}
         <View style={[styles.starsRow, { marginTop: t.spacing.xs }]}>
           <StarRating value={entry.rating} size={16} readOnly />
           {entry.note ? (

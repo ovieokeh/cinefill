@@ -41,7 +41,13 @@ export default function WatchlistScreen() {
         contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => router.push(`/movie/${item.tmdbId}`)}
+            onPress={() => {
+              if (item.mediaType === 'tv') {
+                router.push(`/tv/${item.tmdbId}`);
+              } else {
+                router.push(`/movie/${item.tmdbId}`);
+              }
+            }}
             style={({ pressed }) => ({
               backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
             })}

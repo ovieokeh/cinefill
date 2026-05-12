@@ -144,6 +144,14 @@ export function personUrl(
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
 
+export function stillUrl(
+  path: string | null,
+  size: 'w185' | 'w300' | 'original' = 'w300',
+): string | null {
+  if (!path) return null;
+  return `${TMDB_IMG_BASE}/${size}${path}`;
+}
+
 export type PersonCredit = {
   tmdbId: number;
   mediaType: 'movie' | 'tv';
@@ -254,6 +262,15 @@ function normalizePersonCredits(raw: RawPersonDetails['combined_credits']): Pers
   return out;
 }
 
+export type TvSeasonSummary = {
+  seasonNumber: number;
+  name: string;
+  episodeCount: number;
+  airDate: string | null;
+  posterPath: string | null;
+  overview: string;
+};
+
 export type TvDetails = {
   tmdbId: number;
   name: string;
@@ -273,6 +290,7 @@ export type TvDetails = {
   trailerYoutubeKey: string | null;
   flatrateProviders: { id: number; name: string; logoPath: string | null }[];
   recommendations: { tmdbId: number; mediaType: 'tv'; title: string; year: string | null; posterPath: string | null }[];
+  seasons: TvSeasonSummary[];
 };
 
 type RawAggregateCast = {
@@ -302,6 +320,16 @@ type RawTvRecommendation = {
   poster_path: string | null;
 };
 
+type RawSeasonSummary = {
+  id: number;
+  season_number: number;
+  name: string;
+  episode_count: number;
+  air_date: string | null;
+  poster_path: string | null;
+  overview: string;
+};
+
 type RawTvDetails = {
   id: number;
   name: string;
@@ -316,6 +344,7 @@ type RawTvDetails = {
   backdrop_path: string | null;
   poster_path: string | null;
   created_by: { id: number; name: string }[];
+  seasons?: RawSeasonSummary[];
   aggregate_credits?: { cast: RawAggregateCast[]; crew: RawAggregateCrew[] };
   videos?: { results: RawVideo[] };
   content_ratings?: RawTvContentRatings;
@@ -386,6 +415,21 @@ function pickTvCast(cast: RawAggregateCast[] | undefined): TvDetails['cast'] {
     }));
 }
 
+function pickTvSeasons(raw: RawTvDetails['seasons']): TvSeasonSummary[] {
+  if (!raw) return [];
+  return raw
+    .filter((s) => s.season_number >= 1 && s.episode_count > 0)
+    .map((s) => ({
+      seasonNumber: s.season_number,
+      name: s.name,
+      episodeCount: s.episode_count,
+      airDate: s.air_date,
+      posterPath: s.poster_path,
+      overview: s.overview,
+    }))
+    .sort((a, b) => a.seasonNumber - b.seasonNumber);
+}
+
 function pickTvRecommendations(
   recs: RawTvDetails['recommendations'],
 ): TvDetails['recommendations'] {
@@ -442,6 +486,75 @@ export async function getTvDetails(tvId: number, signal?: AbortSignal): Promise<
     trailerYoutubeKey: pickTrailer(raw.videos?.results),
     flatrateProviders: pickUsFlatrate(raw['watch/providers']),
     recommendations: pickTvRecommendations(raw.recommendations),
+    seasons: pickTvSeasons(raw.seasons),
+  };
+}
+
+export type TvEpisode = {
+  episodeNumber: number;
+  name: string;
+  overview: string;
+  airDate: string | null;
+  stillPath: string | null;
+};
+
+export type SeasonDetails = {
+  seasonNumber: number;
+  name: string;
+  overview: string;
+  airDate: string | null;
+  posterPath: string | null;
+  episodes: TvEpisode[];
+};
+
+type RawSeasonDetails = {
+  season_number: number;
+  name: string;
+  overview: string;
+  air_date: string | null;
+  poster_path: string | null;
+  episodes: {
+    episode_number: number;
+    name: string;
+    overview: string;
+    air_date: string | null;
+    still_path: string | null;
+  }[];
+};
+
+export async function getSeasonDetails(
+  tvId: number,
+  seasonNumber: number,
+  signal?: AbortSignal,
+): Promise<SeasonDetails> {
+  assertTmdbConfigured();
+  const url = `${TMDB_BASE}/tv/${tvId}/season/${seasonNumber}?language=en-US`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`TMDB season failed: ${res.status} ${res.statusText}`);
+  }
+
+  const raw = (await res.json()) as RawSeasonDetails;
+  return {
+    seasonNumber: raw.season_number,
+    name: raw.name,
+    overview: raw.overview,
+    airDate: raw.air_date,
+    posterPath: raw.poster_path,
+    episodes: (raw.episodes ?? []).map((e) => ({
+      episodeNumber: e.episode_number,
+      name: e.name,
+      overview: e.overview,
+      airDate: e.air_date,
+      stillPath: e.still_path,
+    })),
   };
 }
 

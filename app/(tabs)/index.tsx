@@ -91,7 +91,13 @@ export default function DiaryScreen() {
             </View>
           ) : (
             <Pressable
-              onPress={() => router.push(`/movie/${item.entry.tmdbId}`)}
+              onPress={() => {
+                if (item.entry.mediaType === 'tv_season') {
+                  router.push(`/tv/${item.entry.tmdbId}`);
+                } else {
+                  router.push(`/movie/${item.entry.tmdbId}`);
+                }
+              }}
               style={({ pressed }) => ({
                 backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
               })}

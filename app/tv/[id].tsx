@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -24,10 +24,21 @@ import {
   WatchProviders,
   CrewAndGenresSection,
   MoviePosterRow,
+  PosterImage,
+  StarRating,
+  ActionSheet,
+  type ActionItem,
+  type ActionSheetHandle,
 } from '@/components';
 import { useTheme } from '@/theme';
-import { getTvDetails, type TvDetails } from '@/lib/tmdb';
+import { getTvDetails, type TvDetails, type TvSeasonSummary } from '@/lib/tmdb';
 import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
+import {
+  getShowSeasonStats,
+  listShowSeasonEntries,
+  type DiaryEntry,
+} from '@/db/diary';
+import { listStandoutsForShow, type EpisodeStandout } from '@/db/standouts';
 
 const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
@@ -56,6 +67,12 @@ export default function TvScreen() {
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [showNavTitle, setShowNavTitle] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [seasonEntries, setSeasonEntries] = useState<DiaryEntry[]>([]);
+  const [seasonStats, setSeasonStats] = useState<{ mean: number; count: number }>({
+    mean: 0,
+    count: 0,
+  });
+  const [standouts, setStandouts] = useState<EpisodeStandout[]>([]);
 
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
@@ -77,9 +94,17 @@ export default function TvScreen() {
       let cancelled = false;
       if (!validId) return;
       (async () => {
-        const watch = await isInWatchlist(tvId, 'tv');
+        const [watch, entries, stats, marks] = await Promise.all([
+          isInWatchlist(tvId, 'tv'),
+          listShowSeasonEntries(tvId),
+          getShowSeasonStats(tvId),
+          listStandoutsForShow(tvId),
+        ]);
         if (cancelled) return;
         setInWatchlist(watch);
+        setSeasonEntries(entries);
+        setSeasonStats(stats);
+        setStandouts(marks);
       })();
       return () => {
         cancelled = true;
@@ -114,6 +139,8 @@ export default function TvScreen() {
 
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';
 
+  const actionSheetRef = useRef<ActionSheetHandle>(null);
+
   const toggleWatchlist = useCallback(async () => {
     if (!validId || !heroTitle) return;
     try {
@@ -134,6 +161,53 @@ export default function TvScreen() {
       console.error('Failed to toggle watchlist', e);
     }
   }, [tvId, validId, inWatchlist, heroTitle, heroYear, heroPosterPath]);
+
+  const openActions = useCallback(() => {
+    if (!validId || !heroTitle) return;
+    const actions: ActionItem[] = [];
+
+    // "Log a season" — pick the next unlogged season; if all logged, fall back to S1.
+    const seasons = details?.seasons ?? [];
+    if (seasons.length > 0) {
+      const loggedNumbers = new Set(
+        seasonEntries.map((e) => e.seasonNumber).filter((n): n is number => n != null),
+      );
+      const nextUnlogged =
+        seasons.find((s) => !loggedNumbers.has(s.seasonNumber)) ?? seasons[0];
+      actions.push({
+        label: `Log Season ${nextUnlogged.seasonNumber}`,
+        icon: 'eye-outline',
+        onPress: () =>
+          router.push({
+            pathname: '/tv/[id]/season/[n]',
+            params: {
+              id: String(tvId),
+              n: String(nextUnlogged.seasonNumber),
+              showTitle: heroTitle,
+              showPosterPath: heroPosterPath ?? '',
+              showYear: heroYear ?? '',
+            },
+          }),
+      });
+    }
+    actions.push({
+      label: inWatchlist ? 'Remove from watchlist' : 'Add to watchlist',
+      icon: inWatchlist ? 'bookmark' : 'bookmark-outline',
+      onPress: toggleWatchlist,
+    });
+    actionSheetRef.current?.present(actions);
+  }, [
+    validId,
+    heroTitle,
+    heroPosterPath,
+    heroYear,
+    details,
+    seasonEntries,
+    inWatchlist,
+    router,
+    tvId,
+    toggleWatchlist,
+  ]);
 
   if (!validId) {
     return (
@@ -156,6 +230,9 @@ export default function TvScreen() {
 
   const overview = details?.overview ?? '';
   const tagline = details?.tagline ?? '';
+
+  const fabIcon: keyof typeof Ionicons.glyphMap =
+    seasonStats.count > 0 ? 'eye' : inWatchlist ? 'bookmark' : 'add';
 
   const statusLine = (() => {
     if (!details) return null;
@@ -208,6 +285,27 @@ export default function TvScreen() {
             </Text>
           ) : null}
 
+          {seasonStats.count > 0 ? (
+            <View
+              style={[
+                styles.avgRow,
+                {
+                  paddingHorizontal: t.spacing.lg,
+                  marginTop: t.spacing.md,
+                  gap: t.spacing.sm,
+                },
+              ]}
+            >
+              <Text variant="label" tone="muted" style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}>
+                Your average
+              </Text>
+              <StarRating value={seasonStats.mean} size={16} readOnly />
+              <Text variant="caption" tone="muted">
+                {seasonStats.mean.toFixed(1)} · {seasonStats.count} season{seasonStats.count === 1 ? '' : 's'}
+              </Text>
+            </View>
+          ) : null}
+
           {loadingDetails && !details ? (
             <SkeletonBlocks />
           ) : detailsError ? (
@@ -234,6 +332,22 @@ export default function TvScreen() {
                 </Text>
               ) : null}
 
+              {details.seasons.length > 0 ? (
+                <>
+                  <SectionTitle title="Seasons" />
+                  <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
+                    {details.seasons.map((s) => (
+                      <SeasonRow
+                        key={s.seasonNumber}
+                        show={{ tmdbId: tvId, title: heroTitle, posterPath: heroPosterPath, year: heroYear }}
+                        season={s}
+                        loggedEntry={seasonEntries.find((e) => e.seasonNumber === s.seasonNumber) ?? null}
+                      />
+                    ))}
+                  </View>
+                </>
+              ) : null}
+
               {details.cast.length > 0 ? (
                 <>
                   <SectionTitle title="Cast" />
@@ -245,6 +359,17 @@ export default function TvScreen() {
                 <>
                   <SectionTitle title="Crew & Genres" />
                   <CrewAndGenresSection keyCrew={details.keyCrew} genres={details.genres} />
+                </>
+              ) : null}
+
+              {standouts.length > 0 ? (
+                <>
+                  <SectionTitle title="Your standout episodes" />
+                  <View style={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
+                    {standouts.map((ep) => (
+                      <StandoutRow key={`${ep.seasonNumber}-${ep.episodeNumber}`} item={ep} />
+                    ))}
+                  </View>
                 </>
               ) : null}
 
@@ -277,8 +402,8 @@ export default function TvScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-          onPress={toggleWatchlist}
+          accessibilityLabel="Show actions"
+          onPress={openActions}
           style={({ pressed }) => [
             styles.fab,
             {
@@ -293,13 +418,105 @@ export default function TvScreen() {
           ]}
         >
           <Ionicons
-            name={inWatchlist ? 'bookmark' : 'bookmark-outline'}
+            name={fabIcon}
             size={FAB_ICON_SIZE}
             color={t.colors.accent.on}
           />
         </Pressable>
       </Screen>
+      <ActionSheet ref={actionSheetRef} />
     </>
+  );
+}
+
+function SeasonRow({
+  show,
+  season,
+  loggedEntry,
+}: {
+  show: { tmdbId: number; title: string; posterPath: string | null; year: string | null };
+  season: TvSeasonSummary;
+  loggedEntry: DiaryEntry | null;
+}) {
+  const t = useTheme();
+  const router = useRouter();
+  const airYear = season.airDate && season.airDate.length >= 4 ? season.airDate.slice(0, 4) : null;
+  const metaPieces = [
+    `${season.episodeCount} ${season.episodeCount === 1 ? 'episode' : 'episodes'}`,
+    airYear,
+  ].filter((x): x is string => !!x);
+
+  return (
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: '/tv/[id]/season/[n]',
+          params: {
+            id: String(show.tmdbId),
+            n: String(season.seasonNumber),
+            showTitle: show.title,
+            showPosterPath: show.posterPath ?? '',
+            showYear: show.year ?? '',
+          },
+        })
+      }
+      style={({ pressed }) => [
+        styles.seasonRow,
+        {
+          backgroundColor: pressed ? t.colors.bg.elevated : t.colors.bg.surface,
+          borderRadius: t.radii.md,
+          padding: t.spacing.md,
+        },
+      ]}
+    >
+      <PosterImage posterPath={season.posterPath} size="sm" />
+      <View style={[styles.seasonBody, { marginLeft: t.spacing.md }]}>
+        <Text variant="titleMd" numberOfLines={1}>
+          {season.name}
+        </Text>
+        {metaPieces.length > 0 ? (
+          <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+            {metaPieces.join('  ·  ')}
+          </Text>
+        ) : null}
+        {loggedEntry ? (
+          <View style={[styles.loggedRow, { marginTop: t.spacing.xs }]}>
+            <StarRating value={loggedEntry.rating} size={14} readOnly />
+          </View>
+        ) : (
+          <Text variant="caption" tone="accent" style={{ marginTop: t.spacing.xs }}>
+            Log this season
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
+function StandoutRow({ item }: { item: EpisodeStandout }) {
+  const t = useTheme();
+  return (
+    <View
+      style={[
+        styles.standoutRow,
+        {
+          backgroundColor: t.colors.bg.surface,
+          borderRadius: t.radii.md,
+          padding: t.spacing.md,
+          gap: t.spacing.md,
+        },
+      ]}
+    >
+      <Ionicons name="heart" size={18} color={t.colors.danger} />
+      <View style={styles.flex1}>
+        <Text variant="bodyStrong" numberOfLines={1}>
+          {item.episodeName}
+        </Text>
+        <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+          S{item.seasonNumber} · E{item.episodeNumber}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -385,4 +602,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avgRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  seasonRow: { flexDirection: 'row', alignItems: 'center' },
+  seasonBody: { flex: 1, minWidth: 0 },
+  loggedRow: { flexDirection: 'row', alignItems: 'center' },
+  standoutRow: { flexDirection: 'row', alignItems: 'center' },
+  flex1: { flex: 1, minWidth: 0 },
 });

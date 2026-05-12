@@ -5,14 +5,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Screen, Text, Input, Button, PosterImage, StarRating, DateField } from '@/components';
 import { useTheme } from '@/theme';
-import { addEntry } from '@/db/diary';
+import { addEntry, type EntryMediaType } from '@/db/diary';
 import { isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 
-type SeededFilm = {
+type SeededTarget = {
   tmdbId: number;
+  mediaType: EntryMediaType;
   title: string;
   year: string | null;
   posterPath: string | null;
+  seasonNumber: number | null;
+  seasonName: string | null;
 };
 
 function todayIso(): string {
@@ -23,19 +26,37 @@ function todayIso(): string {
   return `${y}-${m}-${day}`;
 }
 
-function parseSeededFilm(params: {
+function parseSeededTarget(params: {
   tmdbId?: string;
   title?: string;
   year?: string;
   posterPath?: string;
-}): SeededFilm | null {
+  mediaType?: string;
+  seasonNumber?: string;
+  seasonName?: string;
+}): SeededTarget | null {
   const tmdbIdNum = Number(params.tmdbId);
   if (!Number.isFinite(tmdbIdNum) || !params.title) return null;
+
+  const mediaType: EntryMediaType = params.mediaType === 'tv_season' ? 'tv_season' : 'movie';
+  let seasonNumber: number | null = null;
+  let seasonName: string | null = null;
+
+  if (mediaType === 'tv_season') {
+    const n = Number(params.seasonNumber);
+    if (!Number.isFinite(n)) return null;
+    seasonNumber = n;
+    seasonName = params.seasonName && params.seasonName.length > 0 ? params.seasonName : null;
+  }
+
   return {
     tmdbId: tmdbIdNum,
+    mediaType,
     title: params.title,
     year: params.year && params.year.length > 0 ? params.year : null,
     posterPath: params.posterPath && params.posterPath.length > 0 ? params.posterPath : null,
+    seasonNumber,
+    seasonName,
   };
 }
 
@@ -48,8 +69,11 @@ export default function NewEntryScreen() {
     title?: string;
     year?: string;
     posterPath?: string;
+    mediaType?: string;
+    seasonNumber?: string;
+    seasonName?: string;
   }>();
-  const film = parseSeededFilm(params);
+  const target = parseSeededTarget(params);
 
   const [watchedDate, setWatchedDate] = useState<string>(todayIso());
   const [rating, setRating] = useState<number>(0);
@@ -57,20 +81,25 @@ export default function NewEntryScreen() {
   const [saving, setSaving] = useState(false);
 
   async function onSave() {
-    if (!film) return;
+    if (!target) return;
     setSaving(true);
     try {
       await addEntry({
-        tmdbId: film.tmdbId,
-        title: film.title,
-        year: film.year,
-        posterPath: film.posterPath,
+        tmdbId: target.tmdbId,
+        mediaType: target.mediaType,
+        seasonNumber: target.seasonNumber,
+        seasonName: target.seasonName,
+        title: target.title,
+        year: target.year,
+        posterPath: target.posterPath,
         watchedDate,
         rating,
         note: note.trim(),
       });
-      if (await isInWatchlist(film.tmdbId, 'movie')) {
-        await removeFromWatchlist(film.tmdbId, 'movie');
+      if (target.mediaType === 'movie') {
+        if (await isInWatchlist(target.tmdbId, 'movie')) {
+          await removeFromWatchlist(target.tmdbId, 'movie');
+        }
       }
       router.back();
     } catch (e) {
@@ -79,7 +108,7 @@ export default function NewEntryScreen() {
     }
   }
 
-  if (!film) {
+  if (!target) {
     return (
       <Screen>
         <View style={styles.centered}>
@@ -102,6 +131,11 @@ export default function NewEntryScreen() {
     );
   }
 
+  const isSeason = target.mediaType === 'tv_season';
+  const subtitle = isSeason
+    ? `Season ${target.seasonNumber}${target.seasonName ? ` · ${target.seasonName}` : ''}`
+    : target.year;
+
   return (
     <Screen padded={false}>
       <KeyboardAwareScrollView
@@ -115,12 +149,12 @@ export default function NewEntryScreen() {
         style={styles.flex}
       >
         <View style={styles.pickedRow}>
-          <PosterImage posterPath={film.posterPath} size="lg" />
+          <PosterImage posterPath={target.posterPath} size="lg" />
           <View style={[styles.pickedBody, { marginLeft: t.spacing.md }]}>
-            <Text variant="titleLg">{film.title}</Text>
-            {film.year ? (
+            <Text variant="titleLg">{target.title}</Text>
+            {subtitle ? (
               <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
-                {film.year}
+                {subtitle}
               </Text>
             ) : null}
           </View>
@@ -148,7 +182,7 @@ export default function NewEntryScreen() {
         </View>
 
         <Button
-          title="Save entry"
+          title={isSeason ? 'Save log' : 'Save entry'}
           onPress={onSave}
           loading={saving}
           style={{ marginTop: t.spacing.xl }}

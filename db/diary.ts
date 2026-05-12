@@ -1,8 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 
+export type EntryMediaType = 'movie' | 'tv_season';
+
 export type DiaryEntry = {
   id: number;
   tmdbId: number;
+  mediaType: EntryMediaType;
+  seasonNumber: number | null;
+  seasonName: string | null;
   title: string;
   year: string | null;
   posterPath: string | null;
@@ -20,11 +25,16 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
       const db = await SQLite.openDatabaseAsync('cinefill.db');
+      await db.execAsync('PRAGMA journal_mode = WAL;');
+
+      // Base table — created on a fresh install with the full schema.
       await db.execAsync(`
-        PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS entries (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           tmdb_id INTEGER NOT NULL,
+          media_type TEXT NOT NULL DEFAULT 'movie',
+          season_number INTEGER,
+          season_name TEXT,
           title TEXT NOT NULL,
           year TEXT,
           poster_path TEXT,
@@ -33,8 +43,32 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
           note TEXT NOT NULL DEFAULT '',
           created_at INTEGER NOT NULL
         );
-        CREATE INDEX IF NOT EXISTS idx_entries_watched_date ON entries(watched_date DESC);
       `);
+
+      // Migrate older databases that pre-date media_type / season columns.
+      const cols = await db.getAllAsync<{ name: string }>(
+        'PRAGMA table_info(entries)',
+      );
+      const has = (n: string) => cols.some((c) => c.name === n);
+      if (!has('media_type')) {
+        await db.execAsync(
+          "ALTER TABLE entries ADD COLUMN media_type TEXT NOT NULL DEFAULT 'movie';",
+        );
+      }
+      if (!has('season_number')) {
+        await db.execAsync('ALTER TABLE entries ADD COLUMN season_number INTEGER;');
+      }
+      if (!has('season_name')) {
+        await db.execAsync('ALTER TABLE entries ADD COLUMN season_name TEXT;');
+      }
+
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_entries_watched_date ON entries(watched_date DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_tv_season_uniq
+          ON entries(tmdb_id, season_number)
+          WHERE media_type = 'tv_season';
+      `);
+
       return db;
     })();
   }
@@ -44,6 +78,9 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
 type Row = {
   id: number;
   tmdb_id: number;
+  media_type: EntryMediaType;
+  season_number: number | null;
+  season_name: string | null;
   title: string;
   year: string | null;
   poster_path: string | null;
@@ -53,10 +90,16 @@ type Row = {
   created_at: number;
 };
 
+const SELECT_COLS =
+  'id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, created_at';
+
 function rowToEntry(row: Row): DiaryEntry {
   return {
     id: row.id,
     tmdbId: row.tmdb_id,
+    mediaType: row.media_type,
+    seasonNumber: row.season_number,
+    seasonName: row.season_name,
     title: row.title,
     year: row.year,
     posterPath: row.poster_path,
@@ -70,7 +113,7 @@ function rowToEntry(row: Row): DiaryEntry {
 export async function getEntry(id: number): Promise<DiaryEntry | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
-    'SELECT id, tmdb_id, title, year, poster_path, watched_date, rating, note, created_at FROM entries WHERE id = ?',
+    `SELECT ${SELECT_COLS} FROM entries WHERE id = ?`,
     id,
   );
   return row ? rowToEntry(row) : null;
@@ -79,16 +122,49 @@ export async function getEntry(id: number): Promise<DiaryEntry | null> {
 export async function getEntryByTmdbId(tmdbId: number): Promise<DiaryEntry | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
-    'SELECT id, tmdb_id, title, year, poster_path, watched_date, rating, note, created_at FROM entries WHERE tmdb_id = ? ORDER BY created_at DESC LIMIT 1',
+    `SELECT ${SELECT_COLS} FROM entries WHERE tmdb_id = ? AND media_type = 'movie' ORDER BY created_at DESC LIMIT 1`,
     tmdbId,
   );
   return row ? rowToEntry(row) : null;
 }
 
+export async function getTvSeasonEntry(
+  tmdbId: number,
+  seasonNumber: number,
+): Promise<DiaryEntry | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<Row>(
+    `SELECT ${SELECT_COLS} FROM entries WHERE tmdb_id = ? AND media_type = 'tv_season' AND season_number = ? LIMIT 1`,
+    tmdbId,
+    seasonNumber,
+  );
+  return row ? rowToEntry(row) : null;
+}
+
+export async function listShowSeasonEntries(tmdbId: number): Promise<DiaryEntry[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<Row>(
+    `SELECT ${SELECT_COLS} FROM entries WHERE tmdb_id = ? AND media_type = 'tv_season' ORDER BY season_number ASC`,
+    tmdbId,
+  );
+  return rows.map(rowToEntry);
+}
+
+export async function getShowSeasonStats(
+  tmdbId: number,
+): Promise<{ mean: number; count: number }> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ mean: number | null; count: number }>(
+    `SELECT AVG(rating) AS mean, COUNT(*) AS count FROM entries WHERE tmdb_id = ? AND media_type = 'tv_season' AND rating > 0`,
+    tmdbId,
+  );
+  return { mean: row?.mean ?? 0, count: row?.count ?? 0 };
+}
+
 export async function listEntries(): Promise<DiaryEntry[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
-    'SELECT id, tmdb_id, title, year, poster_path, watched_date, rating, note, created_at FROM entries ORDER BY watched_date DESC, created_at DESC',
+    `SELECT ${SELECT_COLS} FROM entries ORDER BY watched_date DESC, created_at DESC`,
   );
   return rows.map(rowToEntry);
 }
@@ -116,8 +192,13 @@ export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
   const db = await getDb();
   const createdAt = Date.now();
   const result = await db.runAsync(
-    'INSERT INTO entries (tmdb_id, title, year, poster_path, watched_date, rating, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    `INSERT INTO entries
+      (tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     entry.tmdbId,
+    entry.mediaType,
+    entry.seasonNumber,
+    entry.seasonName,
     entry.title,
     entry.year,
     entry.posterPath,
