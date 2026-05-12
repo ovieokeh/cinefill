@@ -26,7 +26,7 @@ import {
   TrailerCard,
   WatchProviders,
   CrewAndGenresSection,
-  SimilarMoviesCarousel,
+  MoviePosterRow,
   ActionSheet,
   type ActionSheetHandle,
   type ActionItem,
@@ -352,7 +352,7 @@ export default function MovieScreen() {
               {details.recommendations.length > 0 ? (
                 <>
                   <SectionTitle title="Similar movies" />
-                  <SimilarMoviesCarousel movies={details.recommendations} />
+                  <MoviePosterRow items={details.recommendations} />
                 </>
               ) : null}
             </>

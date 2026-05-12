@@ -1,5 +1,6 @@
-import { FlatList, View, StyleSheet } from 'react-native';
+import { FlatList, View, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { profileUrl } from '@/lib/tmdb';
 import type { MovieDetails } from '@/lib/tmdb';
@@ -27,9 +28,16 @@ export function CastCarousel({ cast }: { cast: MovieDetails['cast'] }) {
 
 function CastItem({ item }: { item: CastMember }) {
   const t = useTheme();
+  const router = useRouter();
   const url = profileUrl(item.profilePath, 'w185');
   return (
-    <View style={[styles.item, { width: ITEM_WIDTH }]}>
+    <Pressable
+      onPress={() => router.push(`/person/${item.id}`)}
+      style={({ pressed }) => [
+        styles.item,
+        { width: ITEM_WIDTH, opacity: pressed ? t.opacity.pressed : 1 },
+      ]}
+    >
       {url ? (
         <Image
           source={{ uri: url }}
@@ -66,7 +74,6 @@ function CastItem({ item }: { item: CastMember }) {
       )}
       <Text
         variant="caption"
-        numberOfLines={2}
         style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
       >
         {item.name}
@@ -75,13 +82,12 @@ function CastItem({ item }: { item: CastMember }) {
         <Text
           variant="caption"
           tone="muted"
-          numberOfLines={1}
           style={{ marginTop: t.spacing.xxs, textAlign: 'center' }}
         >
           {item.character}
         </Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 

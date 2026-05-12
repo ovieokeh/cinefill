@@ -23,10 +23,10 @@ export type MovieDetails = {
   director: string | null;
   certification: string | null;
   cast: { id: number; name: string; character: string; profilePath: string | null }[];
-  keyCrew: { role: string; names: string[] }[];
+  keyCrew: { role: string; members: { id: number; name: string }[] }[];
   trailerYoutubeKey: string | null;
   flatrateProviders: { id: number; name: string; logoPath: string | null }[];
-  recommendations: { tmdbId: number; title: string; year: string | null; posterPath: string | null }[];
+  recommendations: { tmdbId: number; mediaType: 'movie'; title: string; year: string | null; posterPath: string | null }[];
 };
 
 type TmdbSearchResponse = {
@@ -136,6 +136,157 @@ export function logoUrl(path: string | null, size: 'w92' | 'w154' = 'w92'): stri
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
 
+export function personUrl(
+  path: string | null,
+  size: 'w185' | 'h632' | 'original' = 'h632',
+): string | null {
+  if (!path) return null;
+  return `${TMDB_IMG_BASE}/${size}${path}`;
+}
+
+export type PersonCredit = {
+  tmdbId: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  year: string | null;
+  posterPath: string | null;
+  role: string;
+  department: string;
+};
+
+export type PersonDetails = {
+  id: number;
+  name: string;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  profilePath: string | null;
+  knownForDepartment: string;
+  credits: PersonCredit[];
+};
+
+type RawPersonCastCredit = {
+  id: number;
+  media_type?: 'movie' | 'tv' | string;
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path: string | null;
+  character?: string;
+};
+
+type RawPersonCrewCredit = {
+  id: number;
+  media_type?: 'movie' | 'tv' | string;
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path: string | null;
+  job?: string;
+  department?: string;
+};
+
+type RawPersonDetails = {
+  id: number;
+  name: string;
+  biography: string | null;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  profile_path: string | null;
+  known_for_department: string | null;
+  combined_credits?: {
+    cast?: RawPersonCastCredit[];
+    crew?: RawPersonCrewCredit[];
+  };
+};
+
+function isSupportedMediaType(m?: string): m is 'movie' | 'tv' {
+  return m === 'movie' || m === 'tv';
+}
+
+function creditTitle(c: RawPersonCastCredit | RawPersonCrewCredit, mt: 'movie' | 'tv'): string {
+  if (mt === 'movie') return c.title || c.original_title || '';
+  return c.name || c.original_name || '';
+}
+
+function creditYear(c: RawPersonCastCredit | RawPersonCrewCredit, mt: 'movie' | 'tv'): string | null {
+  const raw = mt === 'movie' ? c.release_date : c.first_air_date;
+  return raw && raw.length >= 4 ? raw.slice(0, 4) : null;
+}
+
+function normalizePersonCredits(raw: RawPersonDetails['combined_credits']): PersonCredit[] {
+  if (!raw) return [];
+  const out: PersonCredit[] = [];
+  for (const c of raw.cast ?? []) {
+    if (!isSupportedMediaType(c.media_type)) continue;
+    const mt = c.media_type;
+    out.push({
+      tmdbId: c.id,
+      mediaType: mt,
+      title: creditTitle(c, mt),
+      year: creditYear(c, mt),
+      posterPath: c.poster_path,
+      role: c.character ?? '',
+      department: 'Acting',
+    });
+  }
+  for (const c of raw.crew ?? []) {
+    if (!isSupportedMediaType(c.media_type)) continue;
+    const mt = c.media_type;
+    out.push({
+      tmdbId: c.id,
+      mediaType: mt,
+      title: creditTitle(c, mt),
+      year: creditYear(c, mt),
+      posterPath: c.poster_path,
+      role: c.job ?? '',
+      department: c.department ?? 'Crew',
+    });
+  }
+  return out;
+}
+
+export async function getPersonDetails(
+  personId: number,
+  signal?: AbortSignal,
+): Promise<PersonDetails> {
+  assertTmdbConfigured();
+  const url = `${TMDB_BASE}/person/${personId}?append_to_response=combined_credits&language=en-US`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${config.tmdbReadToken}`,
+      Accept: 'application/json',
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    throw new Error(`TMDB person failed: ${res.status} ${res.statusText}`);
+  }
+
+  const raw = (await res.json()) as RawPersonDetails;
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    biography: raw.biography ?? '',
+    birthday: raw.birthday,
+    deathday: raw.deathday,
+    placeOfBirth: raw.place_of_birth,
+    profilePath: raw.profile_path,
+    knownForDepartment: raw.known_for_department ?? '',
+    credits: normalizePersonCredits(raw.combined_credits),
+  };
+}
+
 export async function searchMovies(query: string, signal?: AbortSignal): Promise<TmdbMovie[]> {
   assertTmdbConfigured();
   const trimmed = query.trim();
@@ -188,13 +339,15 @@ function pickKeyCrew(crew: RawCrewMember[] | undefined): MovieDetails['keyCrew']
   if (!crew || crew.length === 0) return [];
   const out: MovieDetails['keyCrew'] = [];
   for (const { jobs, label } of CREW_ROLE_MAP) {
-    const names: string[] = [];
+    const members: { id: number; name: string }[] = [];
+    const seenIds = new Set<number>();
     for (const c of crew) {
-      if (jobs.includes(c.job) && !names.includes(c.name)) {
-        names.push(c.name);
+      if (jobs.includes(c.job) && !seenIds.has(c.id)) {
+        members.push({ id: c.id, name: c.name });
+        seenIds.add(c.id);
       }
     }
-    if (names.length > 0) out.push({ role: label, names });
+    if (members.length > 0) out.push({ role: label, members });
   }
   return out;
 }
@@ -205,6 +358,7 @@ function pickRecommendations(
   if (!recs?.results) return [];
   return recs.results.slice(0, 20).map((r) => ({
     tmdbId: r.id,
+    mediaType: 'movie' as const,
     title: r.title,
     year: r.release_date ? r.release_date.slice(0, 4) : null,
     posterPath: r.poster_path,
