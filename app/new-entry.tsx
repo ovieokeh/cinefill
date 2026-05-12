@@ -1,19 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Screen, Text, Input, Button, PosterImage, StarRating, DateField } from '@/components';
 import { useTheme } from '@/theme';
-import { searchMovies, type TmdbMovie } from '@/lib/tmdb';
 import { addEntry } from '@/db/diary';
 import { isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
+
+type SeededFilm = {
+  tmdbId: number;
+  title: string;
+  year: string | null;
+  posterPath: string | null;
+};
 
 function todayIso(): string {
   const d = new Date();
@@ -21,6 +21,22 @@ function todayIso(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function parseSeededFilm(params: {
+  tmdbId?: string;
+  title?: string;
+  year?: string;
+  posterPath?: string;
+}): SeededFilm | null {
+  const tmdbIdNum = Number(params.tmdbId);
+  if (!Number.isFinite(tmdbIdNum) || !params.title) return null;
+  return {
+    tmdbId: tmdbIdNum,
+    title: params.title,
+    year: params.year && params.year.length > 0 ? params.year : null,
+    posterPath: params.posterPath && params.posterPath.length > 0 ? params.posterPath : null,
+  };
 }
 
 export default function NewEntryScreen() {
@@ -33,82 +49,28 @@ export default function NewEntryScreen() {
     year?: string;
     posterPath?: string;
   }>();
-  const seededFilm: TmdbMovie | null = (() => {
-    const tmdbIdNum = Number(params.tmdbId);
-    if (!Number.isFinite(tmdbIdNum) || !params.title) return null;
-    return {
-      tmdbId: tmdbIdNum,
-      title: params.title,
-      year: params.year && params.year.length > 0 ? params.year : null,
-      posterPath: params.posterPath && params.posterPath.length > 0 ? params.posterPath : null,
-      overview: '',
-    };
-  })();
-  const filmIsLocked = seededFilm !== null;
-
-  const [picked, setPicked] = useState<TmdbMovie | null>(seededFilm);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<TmdbMovie[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const film = parseSeededFilm(params);
 
   const [watchedDate, setWatchedDate] = useState<string>(todayIso());
   const [rating, setRating] = useState<number>(0);
   const [note, setNote] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  const controllerRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    if (picked) return;
-    const q = query.trim();
-    if (!q) {
-      setResults([]);
-      setSearchError(null);
-      return;
-    }
-
-    controllerRef.current?.abort();
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      setSearchError(null);
-      try {
-        const r = await searchMovies(q, controller.signal);
-        if (!controller.signal.aborted) setResults(r);
-      } catch (e: unknown) {
-        if (controller.signal.aborted) return;
-        const msg = e instanceof Error ? e.message : 'Search failed';
-        setSearchError(msg);
-        setResults([]);
-      } finally {
-        if (!controller.signal.aborted) setSearching(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, picked]);
-
   async function onSave() {
-    if (!picked) return;
+    if (!film) return;
     setSaving(true);
     try {
       await addEntry({
-        tmdbId: picked.tmdbId,
-        title: picked.title,
-        year: picked.year,
-        posterPath: picked.posterPath,
+        tmdbId: film.tmdbId,
+        title: film.title,
+        year: film.year,
+        posterPath: film.posterPath,
         watchedDate,
         rating,
         note: note.trim(),
       });
-      if (await isInWatchlist(picked.tmdbId)) {
-        await removeFromWatchlist(picked.tmdbId);
+      if (await isInWatchlist(film.tmdbId)) {
+        await removeFromWatchlist(film.tmdbId);
       }
       router.back();
     } catch (e) {
@@ -117,79 +79,25 @@ export default function NewEntryScreen() {
     }
   }
 
-  if (!picked) {
+  if (!film) {
     return (
-      <Screen padded={false}>
-        <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
-          <Input
-            label="Find a film"
-            placeholder="Search by title…"
-            value={query}
-            onChangeText={setQuery}
-            autoFocus
-            returnKeyType="search"
-            autoCorrect={false}
+      <Screen>
+        <View style={styles.centered}>
+          <Text variant="titleLg">Pick a film first</Text>
+          <Text
+            variant="body"
+            tone="muted"
+            style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
+          >
+            Open a film from search or your watchlist, then choose “Log a watch”.
+          </Text>
+          <Button
+            title="Close"
+            variant="ghost"
+            onPress={() => router.back()}
+            style={{ marginTop: t.spacing.lg }}
           />
-          {searchError ? (
-            <Text variant="caption" tone="danger" style={{ marginTop: t.spacing.sm }}>
-              {searchError}
-            </Text>
-          ) : null}
         </View>
-
-        {searching && results.length === 0 ? (
-          <View style={[styles.centered, { paddingTop: t.spacing.xl }]}>
-            <ActivityIndicator color={t.colors.text.muted} />
-          </View>
-        ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(m) => String(m.tmdbId)}
-            contentContainerStyle={{
-              paddingHorizontal: t.spacing.lg,
-              paddingTop: t.spacing.md,
-              paddingBottom: t.spacing.xxxl,
-            }}
-            ItemSeparatorComponent={() => <View style={{ height: t.spacing.sm }} />}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => setPicked(item)}
-                style={({ pressed }) => [
-                  styles.resultRow,
-                  {
-                    backgroundColor: pressed ? t.colors.bg.elevated : t.colors.bg.surface,
-                    borderRadius: t.radii.md,
-                    padding: t.spacing.md,
-                  },
-                ]}
-              >
-                <PosterImage posterPath={item.posterPath} size="sm" />
-                <View style={[styles.resultBody, { marginLeft: t.spacing.md }]}>
-                  <Text variant="bodyStrong" numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  {item.year ? (
-                    <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
-                      {item.year}
-                    </Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            )}
-            ListEmptyComponent={
-              query.trim() && !searching ? (
-                <Text
-                  variant="body"
-                  tone="muted"
-                  style={{ textAlign: 'center', marginTop: t.spacing.xl }}
-                >
-                  No matches.
-                </Text>
-              ) : null
-            }
-          />
-        )}
       </Screen>
     );
   }
@@ -206,60 +114,45 @@ export default function NewEntryScreen() {
         bottomOffset={t.spacing.lg}
         style={styles.flex}
       >
-          <View style={styles.pickedRow}>
-            <PosterImage posterPath={picked.posterPath} size="lg" />
-            <View style={[styles.pickedBody, { marginLeft: t.spacing.md }]}>
-              <Text variant="titleLg">{picked.title}</Text>
-              {picked.year ? (
-                <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
-                  {picked.year}
-                </Text>
-              ) : null}
-              {filmIsLocked ? null : (
-                <Pressable
-                  onPress={() => {
-                    setPicked(null);
-                    setRating(0);
-                    setNote('');
-                  }}
-                  hitSlop={t.spacing.sm}
-                >
-                  <Text variant="label" tone="accent" style={{ marginTop: t.spacing.sm }}>
-                    Change film
-                  </Text>
-                </Pressable>
-              )}
-            </View>
+        <View style={styles.pickedRow}>
+          <PosterImage posterPath={film.posterPath} size="lg" />
+          <View style={[styles.pickedBody, { marginLeft: t.spacing.md }]}>
+            <Text variant="titleLg">{film.title}</Text>
+            {film.year ? (
+              <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xs }}>
+                {film.year}
+              </Text>
+            ) : null}
           </View>
+        </View>
 
-          <View style={{ marginTop: t.spacing.xl }}>
-            <DateField value={watchedDate} onChange={setWatchedDate} />
-          </View>
+        <View style={{ marginTop: t.spacing.xl }}>
+          <DateField value={watchedDate} onChange={setWatchedDate} />
+        </View>
 
-          <View style={{ marginTop: t.spacing.lg }}>
-            <Text variant="label" tone="secondary" style={{ marginBottom: t.spacing.sm }}>
-              Rating
-            </Text>
-            <StarRating value={rating} onChange={setRating} size={32} />
-          </View>
+        <View style={{ marginTop: t.spacing.lg }}>
+          <Text variant="label" tone="secondary" style={{ marginBottom: t.spacing.sm }}>
+            Rating
+          </Text>
+          <StarRating value={rating} onChange={setRating} size={32} />
+        </View>
 
-          <View style={{ marginTop: t.spacing.lg }}>
-            <Input
-              label="Note"
-              placeholder="A few thoughts (optional)"
-              value={note}
-              onChangeText={setNote}
-              multiline
-            />
-          </View>
-
-          <Button
-            title="Save entry"
-            onPress={onSave}
-            loading={saving}
-            disabled={!picked}
-            style={{ marginTop: t.spacing.xl }}
+        <View style={{ marginTop: t.spacing.lg }}>
+          <Input
+            label="Note"
+            placeholder="A few thoughts (optional)"
+            value={note}
+            onChangeText={setNote}
+            multiline
           />
+        </View>
+
+        <Button
+          title="Save entry"
+          onPress={onSave}
+          loading={saving}
+          style={{ marginTop: t.spacing.xl }}
+        />
       </KeyboardAwareScrollView>
     </Screen>
   );
@@ -267,9 +160,11 @@ export default function NewEntryScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  centered: { alignItems: 'center', justifyContent: 'center' },
-  resultRow: { flexDirection: 'row', alignItems: 'center' },
-  resultBody: { flex: 1, minWidth: 0 },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pickedRow: { flexDirection: 'row', alignItems: 'flex-start' },
   pickedBody: { flex: 1, minWidth: 0 },
 });

@@ -31,10 +31,14 @@ export default function RootLayout() {
             >
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
+                name="search"
+                options={{ presentation: 'modal', title: 'Search films' }}
+              />
+              <Stack.Screen
                 name="new-entry"
                 options={{
                   presentation: 'modal',
-                  title: 'New diary entry',
+                  title: 'Log a watch',
                 }}
               />
               <Stack.Screen

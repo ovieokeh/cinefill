@@ -8,9 +8,6 @@ import { Screen, Text, EntryRow } from '@/components';
 import { useTheme } from '@/theme';
 import { listEntries, type DiaryEntry } from '@/db/diary';
 
-const FAB_SIZE = 56;
-const FAB_ICON_SIZE = 28;
-
 type Section = { key: string; label: string; items: DiaryEntry[] };
 
 function groupByMonth(entries: DiaryEntry[]): Section[] {
@@ -129,25 +126,6 @@ export default function DiaryScreen() {
           )
         }
       />
-
-      <Pressable
-        accessibilityLabel="Add diary entry"
-        onPress={() => router.push('/new-entry')}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            bottom: t.spacing.xl,
-            right: t.spacing.xl,
-            width: FAB_SIZE,
-            height: FAB_SIZE,
-            borderRadius: t.radii.pill,
-            backgroundColor: pressed ? t.colors.accent.pressed : t.colors.accent.base,
-            ...t.shadows.card,
-          },
-        ]}
-      >
-        <Ionicons name="add" size={FAB_ICON_SIZE} color={t.colors.accent.on} />
-      </Pressable>
     </Screen>
   );
 }
@@ -155,10 +133,5 @@ export default function DiaryScreen() {
 const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
