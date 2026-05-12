@@ -6,7 +6,7 @@ import { useTheme } from '@/theme';
 type Props = {
   children: ReactNode;
   style?: ViewStyle;
-  edges?: ReadonlyArray<Edge>;
+  edges?: readonly Edge[];
   padded?: boolean;
 };
 

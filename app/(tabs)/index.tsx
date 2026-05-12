@@ -87,13 +87,20 @@ export default function DiaryScreen() {
               <Text
                 variant="label"
                 tone="muted"
-                style={{ textTransform: 'uppercase', letterSpacing: 1 }}
+                style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}
               >
                 {item.label}
               </Text>
             </View>
           ) : (
-            <EntryRow entry={item.entry} />
+            <Pressable
+              onPress={() => router.push(`/entry/${item.entry.id}`)}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
+              })}
+            >
+              <EntryRow entry={item.entry} />
+            </Pressable>
           )
         }
         refreshControl={

@@ -35,6 +35,10 @@ export default function RootLayout() {
                 title: 'New diary entry',
               }}
             />
+            <Stack.Screen
+              name="entry/[id]"
+              options={{ title: '', headerBackTitle: 'Diary' }}
+            />
           </Stack>
           <StatusBar style="light" />
         </ThemeProvider>

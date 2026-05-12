@@ -67,6 +67,15 @@ function rowToEntry(row: Row): DiaryEntry {
   };
 }
 
+export async function getEntry(id: number): Promise<DiaryEntry | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<Row>(
+    'SELECT id, tmdb_id, title, year, poster_path, watched_date, rating, note, created_at FROM entries WHERE id = ?',
+    id,
+  );
+  return row ? rowToEntry(row) : null;
+}
+
 export async function listEntries(): Promise<DiaryEntry[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(

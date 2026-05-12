@@ -24,6 +24,13 @@ export const colors = {
   },
   star: '#FFB400',
   danger: '#E0654D',
+  rating: {
+    mild: '#5DBB63',         // G, PG, U
+    cautionary: '#E8A33D',   // PG-13, 12, 12A
+    restricted: '#D8493B',   // R, 15
+    adult: '#A0291C',        // NC-17, 18
+    unknown: '#3A424D',      // anything else
+  },
   overlay: 'rgba(0,0,0,0.55)',
   transparent: 'transparent',
 } as const;
@@ -100,6 +107,12 @@ export const durations = {
   slow: 320,
 } as const;
 
+export const tracking = {
+  normal: 0,
+  label: 1,      // uppercase section/eyebrow labels
+  badge: 0.5,    // tight-tracked badges
+} as const;
+
 export const opacity = {
   disabled: 0.4,
   pressed: 0.7,
@@ -114,6 +127,7 @@ export const tokens = {
   shadows,
   durations,
   opacity,
+  tracking,
 } as const;
 
 export type Tokens = typeof tokens;

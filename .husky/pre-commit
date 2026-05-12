@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+# Full-project type-check (fast on small codebases; catches cross-file issues
+# that lint-staged would miss since it only sees changed files).
+npx tsc --noEmit || exit 1
+
+# Per-staged-file checks: ESLint + custom style-token-literal guard.
+npx lint-staged || exit 1
