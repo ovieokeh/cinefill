@@ -30,9 +30,11 @@ import {
   type ActionItem,
   type ActionSheetHandle,
 } from '@/components';
-import { useTheme } from '@/theme';
+import { tokens, useTheme } from '@/theme';
 import { getTvDetails, type TvDetails, type TvSeasonSummary } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
+import { usePosterAccent } from '@/hooks/use-poster-accent';
+import { tintTowardsDark } from '@/lib/poster-accent';
 import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 import {
   getShowSeasonStats,
@@ -146,6 +148,7 @@ export default function TvScreen() {
   const heroTitle = details?.name ?? seedTitle ?? '';
   const heroYear = details?.yearRange ?? seedYear;
   const heroPosterPath = details?.posterPath ?? seedPosterPath;
+  const accent = usePosterAccent(heroPosterPath);
 
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';
 
@@ -278,6 +281,7 @@ export default function TvScreen() {
               byline={details?.creators ? `Created by ${details.creators}` : null}
               certification={details?.certification ?? null}
               scrollY={scrollY}
+              accent={accent}
             />
           ) : (
             <View style={styles.heroSkeleton}>
@@ -422,7 +426,11 @@ export default function TvScreen() {
               width: FAB_SIZE,
               height: FAB_SIZE,
               borderRadius: t.radii.pill,
-              backgroundColor: pressed ? t.colors.accent.pressed : t.colors.accent.base,
+              backgroundColor: pressed
+                ? accent === tokens.colors.accent.base
+                  ? t.colors.accent.pressed
+                  : tintTowardsDark(accent, 0.2)
+                : accent,
               ...t.shadows.card,
             },
           ]}
@@ -430,7 +438,9 @@ export default function TvScreen() {
           <Ionicons
             name={fabIcon}
             size={FAB_ICON_SIZE}
-            color={t.colors.accent.on}
+            color={
+              accent === tokens.colors.accent.base ? t.colors.accent.on : t.colors.text.primary
+            }
           />
         </Pressable>
       </Screen>
