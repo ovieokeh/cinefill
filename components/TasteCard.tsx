@@ -1,6 +1,5 @@
 import { useRef, type ReactNode } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { Text } from './Text';
@@ -430,18 +429,8 @@ export function TasteCard({
         </Text>
       ) : null}
 
-      {/* Decorative gold tick — the pull-quote rule */}
-      <View
-        style={{
-          marginTop: t.spacing.xl,
-          width: t.spacing.xxxl,
-          height: StyleSheet.hairlineWidth,
-          backgroundColor: t.colors.accent.base,
-        }}
-      />
-
       {/* 2 × 3 stat cell grid */}
-      <View style={[styles.grid, { marginTop: t.spacing.lg, gap: t.spacing.sm }]}>
+      <View style={[styles.grid, { marginTop: t.spacing.xl, gap: t.spacing.sm }]}>
         <View style={[styles.gridRow, { gap: t.spacing.sm }]}>
           <TasteCell
             label="Era"
@@ -573,12 +562,6 @@ function TasteCell({
         >
           {readout}
         </Text>
-      ) : null}
-      {/* Tap-to-expand affordance — subtle chevron tucked in the top-right. */}
-      {onPress ? (
-        <View style={{ position: 'absolute', top: t.spacing.sm, right: t.spacing.sm }}>
-          <Ionicons name="chevron-up" size={t.spacing.md} color={t.colors.text.muted} />
-        </View>
       ) : null}
     </View>
   );
