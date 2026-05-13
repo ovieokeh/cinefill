@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { useTheme, genreColor } from '@/theme';
 import { Text } from './Text';
 import { PosterImage } from './PosterImage';
+import { PublicToggle } from './PublicToggle';
 import type { WatchlistItem } from '@/db/watchlist';
 
 const META_GENRE_LIMIT = 2;
@@ -22,12 +23,16 @@ export function WatchlistRow({
   item,
   genres,
   runtime,
+  showPublicToggle = false,
+  onTogglePublic,
 }: {
   item: WatchlistItem;
   /** Resolved genres (id + name). Caller maps from cache.genreIds + the TMDB genre catalogue. */
   genres?: WatchlistRowGenre[];
   /** Minutes; for TV this is the per-episode runtime. */
   runtime?: number | null;
+  showPublicToggle?: boolean;
+  onTogglePublic?: (value: boolean) => void;
 }) {
   const t = useTheme();
   const shownGenres = (genres ?? []).slice(0, META_GENRE_LIMIT);
@@ -98,6 +103,14 @@ export function WatchlistRow({
               ? `${shownGenres.length > 0 ? ' · ' : ''}${runtimeLabel}`
               : ''}
           </Text>
+        ) : null}
+        {showPublicToggle && onTogglePublic ? (
+          <PublicToggle
+            compact
+            value={item.isPublic}
+            onValueChange={onTogglePublic}
+            style={{ marginTop: t.spacing.sm }}
+          />
         ) : null}
       </View>
     </View>

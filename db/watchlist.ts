@@ -18,6 +18,7 @@ export type WatchlistItem = {
   title: string;
   year: string | null;
   posterPath: string | null;
+  isPublic: boolean;
   addedAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -27,7 +28,13 @@ export type WatchlistItem = {
 
 export type NewWatchlistItem = Omit<
   WatchlistItem,
-  'syncId' | 'addedAt' | 'updatedAt' | 'deletedAt' | 'dirty' | 'lastModifiedDeviceId'
+  | 'syncId'
+  | 'isPublic'
+  | 'addedAt'
+  | 'updatedAt'
+  | 'deletedAt'
+  | 'dirty'
+  | 'lastModifiedDeviceId'
 >;
 
 function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -40,6 +47,7 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
         title TEXT NOT NULL,
         year TEXT,
         poster_path TEXT,
+        is_public INTEGER NOT NULL DEFAULT 0,
         added_at INTEGER NOT NULL,
         updated_at INTEGER,
         deleted_at INTEGER,
@@ -55,6 +63,7 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
       deleted_at: 'INTEGER',
       dirty: 'INTEGER NOT NULL DEFAULT 1',
       last_modified_device_id: 'TEXT',
+      is_public: 'INTEGER NOT NULL DEFAULT 0',
     });
     await db.execAsync(`
       UPDATE watchlist
@@ -75,6 +84,7 @@ type Row = {
   title: string;
   year: string | null;
   poster_path: string | null;
+  is_public: number;
   added_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -90,6 +100,7 @@ function rowToItem(row: Row): WatchlistItem {
     title: row.title,
     year: row.year,
     posterPath: row.poster_path,
+    isPublic: row.is_public === 1,
     addedAt: row.added_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -99,7 +110,7 @@ function rowToItem(row: Row): WatchlistItem {
 }
 
 const SELECT_COLS =
-  'sync_id, tmdb_id, media_type, title, year, poster_path, added_at, updated_at, deleted_at, dirty, last_modified_device_id';
+  'sync_id, tmdb_id, media_type, title, year, poster_path, is_public, added_at, updated_at, deleted_at, dirty, last_modified_device_id';
 
 function rowToSyncBase(row: Row): SyncBaseRecord {
   return {
@@ -118,6 +129,7 @@ function rowToSyncRecord(row: Row): WatchlistItemRecord {
     title: row.title,
     year: row.year,
     posterPath: row.poster_path,
+    isPublic: row.is_public === 1,
     addedAt: row.added_at,
   };
 }
@@ -129,14 +141,15 @@ export async function addToWatchlist(item: NewWatchlistItem): Promise<WatchlistI
   const syncId = watchlistSyncId(item.mediaType, item.tmdbId);
   await db.runAsync(
     `INSERT OR REPLACE INTO watchlist
-      (sync_id, tmdb_id, media_type, title, year, poster_path, added_at, updated_at, deleted_at, dirty, last_modified_device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (sync_id, tmdb_id, media_type, title, year, poster_path, is_public, added_at, updated_at, deleted_at, dirty, last_modified_device_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     syncId,
     item.tmdbId,
     item.mediaType,
     item.title,
     item.year,
     item.posterPath,
+    0,
     addedAt,
     addedAt,
     null,
@@ -147,6 +160,7 @@ export async function addToWatchlist(item: NewWatchlistItem): Promise<WatchlistI
   return {
     ...item,
     syncId,
+    isPublic: false,
     addedAt,
     updatedAt: addedAt,
     deletedAt: null,
@@ -186,14 +200,15 @@ export async function addToWatchlistBatch(items: NewWatchlistItem[]): Promise<vo
       const syncId = watchlistSyncId(item.mediaType, item.tmdbId);
       await db.runAsync(
         `INSERT OR REPLACE INTO watchlist
-          (sync_id, tmdb_id, media_type, title, year, poster_path, added_at, updated_at, deleted_at, dirty, last_modified_device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (sync_id, tmdb_id, media_type, title, year, poster_path, is_public, added_at, updated_at, deleted_at, dirty, last_modified_device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         syncId,
         item.tmdbId,
         item.mediaType,
         item.title,
         item.year,
         item.posterPath,
+        0,
         addedAt,
         addedAt,
         null,
@@ -227,6 +242,27 @@ export async function removeFromWatchlist(
     return;
   }
   await db.runAsync('DELETE FROM watchlist WHERE tmdb_id = ? AND media_type = ?', tmdbId, mediaType);
+}
+
+export async function setWatchlistItemPublic(
+  tmdbId: number,
+  mediaType: WatchlistMediaType,
+  isPublic: boolean,
+): Promise<void> {
+  const db = await getDb();
+  const updatedAt = Date.now();
+  const deviceId = await getDeviceId();
+  await db.runAsync(
+    `UPDATE watchlist
+     SET is_public = ?, updated_at = ?, dirty = 1, last_modified_device_id = ?
+     WHERE tmdb_id = ? AND media_type = ? AND deleted_at IS NULL`,
+    isPublic ? 1 : 0,
+    updatedAt,
+    deviceId,
+    tmdbId,
+    mediaType,
+  );
+  notifySyncNeeded();
 }
 
 export async function isInWatchlist(
@@ -296,15 +332,16 @@ export async function applyRemoteWatchlistItems(
       if (existing && !isIncomingNewer(record, rowToSyncBase(existing))) continue;
       await db.runAsync(
         `INSERT OR REPLACE INTO watchlist
-          (sync_id, tmdb_id, media_type, title, year, poster_path, added_at,
+          (sync_id, tmdb_id, media_type, title, year, poster_path, is_public, added_at,
            updated_at, deleted_at, dirty, last_modified_device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
         record.syncId,
         record.tmdbId,
         record.mediaType,
         record.title,
         record.year,
         record.posterPath,
+        record.isPublic ? 1 : 0,
         record.addedAt,
         record.updatedAt,
         record.deletedAt,

@@ -116,10 +116,9 @@ export default function SyncSettingsScreen() {
             PRIVACY
           </Text>
           <Text variant="caption" tone="muted">
-            Sync is optional. When enabled, cinefill sends diary entries,
-            watchlist items, standout episodes, deletion markers, timestamps,
-            and a random device ID to the server URL you enter. TMDB cache stays
-            on this device. Your token is stored securely on this device.
+            Optional sync mirrors your diary, watchlist, standout episodes, and
+            deletions to the server you choose. TMDB cache stays local, and
+            diary/watchlist items stay private unless marked public.
           </Text>
         </View>
 

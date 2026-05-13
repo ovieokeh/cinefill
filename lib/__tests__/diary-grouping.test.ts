@@ -14,6 +14,7 @@ function entry(over: Partial<DiaryEntry> & Pick<DiaryEntry, 'id'>): DiaryEntry {
     watchedDate: '2024-03-15',
     rating: 4,
     note: '',
+    isPublic: false,
     createdAt: Date.UTC(2024, 2, 15),
     updatedAt: Date.UTC(2024, 2, 15),
     deletedAt: null,

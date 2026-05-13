@@ -90,8 +90,10 @@ export default function SupportPage() {
                   Sync is optional. When enabled, cinefill mirrors diary
                   entries, watchlist items, standout episodes, deletion markers,
                   timestamps, and a random device ID to the server URL you
-                  enter. Cached TMDB metadata stays local. The privacy page has
-                  the full list.
+                  enter. Diary and watchlist items include a private-by-default
+                  visibility flag, and only items you mark public should appear
+                  on a public site. Cached TMDB metadata stays local. The
+                  privacy page has the full list.
                 </p>
               </div>
 

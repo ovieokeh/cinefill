@@ -9,6 +9,7 @@ export { Input } from './Input';
 export { Button } from './Button';
 export { StarRating } from './StarRating';
 export { PosterImage } from './PosterImage';
+export { PublicToggle } from './PublicToggle';
 export { DateField } from './DateField';
 export { EntryRow } from './EntryRow';
 export { WatchlistRow } from './WatchlistRow';

@@ -23,6 +23,7 @@ export type DiaryEntryRecord = SyncBaseRecord & {
   watchedDate: string;
   rating: number;
   note: string;
+  isPublic: boolean;
   createdAt: number;
 };
 
@@ -32,6 +33,7 @@ export type WatchlistItemRecord = SyncBaseRecord & {
   title: string;
   year: string | null;
   posterPath: string | null;
+  isPublic: boolean;
   addedAt: number;
 };
 

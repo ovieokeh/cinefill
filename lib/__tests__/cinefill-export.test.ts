@@ -21,6 +21,7 @@ const diaryEntry: DiaryEntry = {
   watchedDate: '2026-05-13',
   rating: 4.5,
   note: 'Line one\n"Line two"',
+  isPublic: true,
   createdAt: Date.UTC(2026, 4, 13, 10),
   updatedAt: Date.UTC(2026, 4, 13, 11),
   deletedAt: null,
@@ -35,6 +36,7 @@ const watchlistItem: WatchlistItem = {
   title: 'Forrest Gump',
   year: '1994',
   posterPath: '/forrest.jpg',
+  isPublic: false,
   addedAt: Date.UTC(2026, 4, 12, 10),
   updatedAt: Date.UTC(2026, 4, 12, 10),
   deletedAt: null,
@@ -77,6 +79,7 @@ describe('cinefill export', () => {
     expect(payload.data.diaryEntries[0]).toMatchObject({
       syncId: 'diary:1',
       title: 'Fight Club, obviously',
+      isPublic: true,
       createdAt: '2026-05-13T10:00:00.000Z',
       updatedAt: '2026-05-13T11:00:00.000Z',
     });

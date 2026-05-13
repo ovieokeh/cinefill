@@ -9,6 +9,7 @@ import {
   Input,
   Button,
   PosterImage,
+  PublicToggle,
   StarRating,
   DateField,
   Skeleton,
@@ -16,9 +17,10 @@ import {
   SkeletonText,
 } from '@/components';
 import { useTheme } from '@/theme';
-import { getEntry, updateEntry, type DiaryEntry } from '@/db/diary';
+import { getEntry, setEntryPublic, updateEntry, type DiaryEntry } from '@/db/diary';
 import { haptic } from '@/lib/haptics';
 import { useFilmContext } from '@/lib/film-context';
+import { useSync } from '@/lib/sync/context';
 
 type EntryState = DiaryEntry | null | 'missing';
 
@@ -26,6 +28,7 @@ export default function EditEntryScreen() {
   const t = useTheme();
   const router = useRouter();
   const { refresh } = useFilmContext();
+  const { meta } = useSync();
   const { id } = useLocalSearchParams<{ id: string }>();
   const entryId = Number(id);
 
@@ -33,6 +36,7 @@ export default function EditEntryScreen() {
   const [watchedDate, setWatchedDate] = useState<string>('');
   const [rating, setRating] = useState<number>(0);
   const [note, setNote] = useState<string>('');
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -52,6 +56,7 @@ export default function EditEntryScreen() {
       setWatchedDate(row.watchedDate);
       setRating(row.rating);
       setNote(row.note);
+      setIsPublic(row.isPublic);
     })();
     return () => {
       cancelled = true;
@@ -67,6 +72,9 @@ export default function EditEntryScreen() {
         rating,
         note: note.trim(),
       });
+      if (isPublic !== entry.isPublic) {
+        await setEntryPublic(entry.id, isPublic);
+      }
       await refresh();
       haptic.success();
       router.back();
@@ -75,6 +83,8 @@ export default function EditEntryScreen() {
       console.error('Failed to update entry', e);
     }
   }
+
+  const showPublicControls = Boolean(meta?.enabled && meta.serverUrl.trim().length > 0);
 
   if (entry === 'missing') {
     return (
@@ -191,6 +201,14 @@ export default function EditEntryScreen() {
             multiline
           />
         </View>
+
+        {showPublicControls ? (
+          <PublicToggle
+            value={isPublic}
+            onValueChange={setIsPublic}
+            style={{ marginTop: t.spacing.lg }}
+          />
+        ) : null}
 
         <Button
           title="Save changes"

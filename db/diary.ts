@@ -24,6 +24,7 @@ export type DiaryEntry = {
   watchedDate: string;
   rating: number;
   note: string;
+  isPublic: boolean;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -33,7 +34,14 @@ export type DiaryEntry = {
 
 export type NewDiaryEntry = Omit<
   DiaryEntry,
-  'id' | 'syncId' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'dirty' | 'lastModifiedDeviceId'
+  | 'id'
+  | 'syncId'
+  | 'isPublic'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'deletedAt'
+  | 'dirty'
+  | 'lastModifiedDeviceId'
 >;
 
 function getDb(): Promise<SQLite.SQLiteDatabase> {
@@ -52,6 +60,7 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
         watched_date TEXT NOT NULL,
         rating REAL NOT NULL,
         note TEXT NOT NULL DEFAULT '',
+        is_public INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER,
         deleted_at INTEGER,
@@ -69,6 +78,7 @@ function getDb(): Promise<SQLite.SQLiteDatabase> {
       deleted_at: 'INTEGER',
       dirty: 'INTEGER NOT NULL DEFAULT 1',
       last_modified_device_id: 'TEXT',
+      is_public: 'INTEGER NOT NULL DEFAULT 0',
     });
     await db.execAsync(`
       DROP INDEX IF EXISTS idx_entries_tv_season_uniq;
@@ -99,6 +109,7 @@ type Row = {
   watched_date: string;
   rating: number;
   note: string;
+  is_public: number;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -107,7 +118,7 @@ type Row = {
 };
 
 const SELECT_COLS =
-  'id, sync_id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, created_at, updated_at, deleted_at, dirty, last_modified_device_id';
+  'id, sync_id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, is_public, created_at, updated_at, deleted_at, dirty, last_modified_device_id';
 
 function rowToEntry(row: Row): DiaryEntry {
   return {
@@ -123,6 +134,7 @@ function rowToEntry(row: Row): DiaryEntry {
     watchedDate: row.watched_date,
     rating: row.rating,
     note: row.note,
+    isPublic: row.is_public === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -153,6 +165,7 @@ function rowToSyncRecord(row: Row): DiaryEntryRecord {
     watchedDate: row.watched_date,
     rating: row.rating,
     note: row.note,
+    isPublic: row.is_public === 1,
     createdAt: row.created_at,
   };
 }
@@ -235,6 +248,20 @@ export async function updateEntry(
   notifySyncNeeded();
 }
 
+export async function setEntryPublic(id: number, isPublic: boolean): Promise<void> {
+  const db = await getDb();
+  const updatedAt = Date.now();
+  const deviceId = await getDeviceId();
+  await db.runAsync(
+    'UPDATE entries SET is_public = ?, updated_at = ?, dirty = 1, last_modified_device_id = ? WHERE id = ? AND deleted_at IS NULL',
+    isPublic ? 1 : 0,
+    updatedAt,
+    deviceId,
+    id,
+  );
+  notifySyncNeeded();
+}
+
 export async function deleteEntry(id: number): Promise<void> {
   const db = await getDb();
   if (await isSyncEnabled()) {
@@ -260,8 +287,8 @@ export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
   const syncId = createRandomSyncId('diary');
   const result = await db.runAsync(
     `INSERT INTO entries
-      (sync_id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, created_at, updated_at, deleted_at, dirty, last_modified_device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (sync_id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, is_public, created_at, updated_at, deleted_at, dirty, last_modified_device_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     syncId,
     entry.tmdbId,
     entry.mediaType,
@@ -273,6 +300,7 @@ export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
     entry.watchedDate,
     entry.rating,
     entry.note,
+    0,
     createdAt,
     createdAt,
     null,
@@ -287,6 +315,7 @@ export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
     updatedAt: createdAt,
     deletedAt: null,
     dirty: 1,
+    isPublic: false,
     lastModifiedDeviceId: deviceId,
   };
   notifySyncNeeded();
@@ -303,8 +332,8 @@ export async function addEntries(entries: NewDiaryEntry[]): Promise<void> {
       const syncId = createRandomSyncId('diary');
       await db.runAsync(
         `INSERT INTO entries
-          (sync_id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, created_at, updated_at, deleted_at, dirty, last_modified_device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (sync_id, tmdb_id, media_type, season_number, season_name, title, year, poster_path, watched_date, rating, note, is_public, created_at, updated_at, deleted_at, dirty, last_modified_device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         syncId,
         entry.tmdbId,
         entry.mediaType,
@@ -316,6 +345,7 @@ export async function addEntries(entries: NewDiaryEntry[]): Promise<void> {
         entry.watchedDate,
         entry.rating,
         entry.note,
+        0,
         createdAt,
         createdAt,
         null,
@@ -408,7 +438,7 @@ export async function applyRemoteDiaryEntries(
           `UPDATE entries
            SET tmdb_id = ?, media_type = ?, season_number = ?, season_name = ?, title = ?,
                year = ?, poster_path = ?, watched_date = ?, rating = ?, note = ?,
-               created_at = ?, updated_at = ?, deleted_at = ?, dirty = 0,
+               is_public = ?, created_at = ?, updated_at = ?, deleted_at = ?, dirty = 0,
                last_modified_device_id = ?
            WHERE sync_id = ?`,
           record.tmdbId,
@@ -421,6 +451,7 @@ export async function applyRemoteDiaryEntries(
           record.watchedDate,
           record.rating,
           record.note,
+          record.isPublic ? 1 : 0,
           record.createdAt,
           record.updatedAt,
           record.deletedAt,
@@ -431,9 +462,9 @@ export async function applyRemoteDiaryEntries(
         await db.runAsync(
           `INSERT INTO entries
             (sync_id, tmdb_id, media_type, season_number, season_name, title, year,
-             poster_path, watched_date, rating, note, created_at, updated_at,
+             poster_path, watched_date, rating, note, is_public, created_at, updated_at,
              deleted_at, dirty, last_modified_device_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
           record.syncId,
           record.tmdbId,
           record.mediaType,
@@ -445,6 +476,7 @@ export async function applyRemoteDiaryEntries(
           record.watchedDate,
           record.rating,
           record.note,
+          record.isPublic ? 1 : 0,
           record.createdAt,
           record.updatedAt,
           record.deletedAt,

@@ -17,8 +17,14 @@ import {
   type SortOption,
 } from '@/components';
 import { useTheme } from '@/theme';
-import { listWatchlist, type WatchlistItem } from '@/db/watchlist';
+import {
+  listWatchlist,
+  setWatchlistItemPublic,
+  type WatchlistItem,
+} from '@/db/watchlist';
 import { listAllCache, type MediaCacheRow } from '@/db/media_cache';
+import { haptic } from '@/lib/haptics';
+import { useSync } from '@/lib/sync/context';
 import { getGenres, type GenreRef } from '@/lib/tmdb';
 import {
   applyFilters,
@@ -58,6 +64,7 @@ const SORT_COMPARATORS: Record<
 export default function WatchlistScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { meta } = useSync();
   const [items, setItems] = useState<WatchlistItem[] | null>(null);
   const [cache, setCache] = useState<MediaCacheRow[]>([]);
   const [genreMaps, setGenreMaps] = useState<{ movie: GenreMap; tv: GenreMap } | null>(
@@ -145,6 +152,27 @@ export default function WatchlistScreen() {
     }
   }, [load]);
 
+  const showPublicControls = Boolean(meta?.enabled && meta.serverUrl.trim().length > 0);
+
+  const togglePublic = useCallback(async (item: WatchlistItem, next: boolean) => {
+    setItems((prev) =>
+      prev?.map((row) =>
+        row.syncId === item.syncId ? { ...row, isPublic: next } : row,
+      ) ?? null,
+    );
+    haptic.selection();
+    try {
+      await setWatchlistItemPublic(item.tmdbId, item.mediaType, next);
+    } catch (error) {
+      console.error('Failed to update watchlist visibility', error);
+      setItems((prev) =>
+        prev?.map((row) =>
+          row.syncId === item.syncId ? { ...row, isPublic: item.isPublic } : row,
+        ) ?? null,
+      );
+    }
+  }, []);
+
   const activeFilters = countActiveFilters(filters);
   const totalItems = items?.length ?? 0;
   const filteredOut = totalItems > 0 && sorted.length === 0;
@@ -205,7 +233,13 @@ export default function WatchlistScreen() {
                 backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
               })}
             >
-              <WatchlistRow item={item} genres={genres} runtime={c?.runtime ?? null} />
+              <WatchlistRow
+                item={item}
+                genres={genres}
+                runtime={c?.runtime ?? null}
+                showPublicToggle={showPublicControls}
+                onTogglePublic={(next) => togglePublic(item, next)}
+              />
             </Pressable>
           );
         }}

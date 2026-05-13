@@ -9,7 +9,7 @@ const LAST_UPDATED = "May 13, 2026";
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "cinefill is a local-first film and TV diary. No accounts, analytics, or tracking. Optional sync sends only selected library data to a server you choose.",
+    "cinefill is a local-first film and TV diary. No accounts, analytics, or tracking. Optional sync and public sharing are explicit opt-ins.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -71,7 +71,8 @@ export default function PrivacyPage() {
               markers, sync timestamps, and a random app-generated device ID to
               the server URL you configure. Diary records may include titles,
               TMDB IDs, watched dates, ratings, notes, year, poster path, and TV
-              season details.
+              season details. Diary and watchlist records also include whether
+              you explicitly marked that item public.
             </p>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
               Your personal token is stored on-device using the platform secure
@@ -87,6 +88,12 @@ export default function PrivacyPage() {
               diary, watchlist, and standout episodes mirrored between your
               devices. We do not sell it, use it for advertising, or share it
               with data brokers.
+            </p>
+            <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
+              Synced diary and watchlist items are private by default. They are
+              not meant to appear on a public website unless you turn on the
+              <em> Make public</em> control for that item. TV episode standouts
+              sync for your devices but are not public-facing in this version.
             </p>
           </section>
 

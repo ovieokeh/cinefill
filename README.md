@@ -173,6 +173,10 @@ data:
 - TV episode standouts
 - tombstones and sync metadata needed to merge changes
 
+Diary entries and watchlist items sync as private by default. The in-app
+`Make public` controls only appear when sync is configured, and public sites
+should render only records with that explicit flag.
+
 The client API is in `lib/sync/`. The app expects a compatible server exposing:
 
 - `GET /api/cinefill/v1/health`

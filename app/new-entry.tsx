@@ -3,12 +3,22 @@ import { View, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { Screen, Text, Input, Button, PosterImage, StarRating, DateField } from '@/components';
+import {
+  Screen,
+  Text,
+  Input,
+  Button,
+  PosterImage,
+  PublicToggle,
+  StarRating,
+  DateField,
+} from '@/components';
 import { useTheme } from '@/theme';
-import { addEntry, type EntryMediaType } from '@/db/diary';
+import { addEntry, setEntryPublic, type EntryMediaType } from '@/db/diary';
 import { isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
 import { haptic } from '@/lib/haptics';
 import { useFilmContext } from '@/lib/film-context';
+import { useSync } from '@/lib/sync/context';
 
 type SeededTarget = {
   tmdbId: number;
@@ -66,6 +76,7 @@ export default function NewEntryScreen() {
   const t = useTheme();
   const router = useRouter();
   const { refresh } = useFilmContext();
+  const { meta } = useSync();
 
   const params = useLocalSearchParams<{
     tmdbId?: string;
@@ -81,13 +92,14 @@ export default function NewEntryScreen() {
   const [watchedDate, setWatchedDate] = useState<string>(todayIso());
   const [rating, setRating] = useState<number>(0);
   const [note, setNote] = useState<string>('');
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function onSave() {
     if (!target) return;
     setSaving(true);
     try {
-      await addEntry({
+      const saved = await addEntry({
         tmdbId: target.tmdbId,
         mediaType: target.mediaType,
         seasonNumber: target.seasonNumber,
@@ -99,6 +111,7 @@ export default function NewEntryScreen() {
         rating,
         note: note.trim(),
       });
+      if (isPublic) await setEntryPublic(saved.id, true);
       if (target.mediaType === 'movie') {
         if (await isInWatchlist(target.tmdbId, 'movie')) {
           await removeFromWatchlist(target.tmdbId, 'movie');
@@ -137,6 +150,7 @@ export default function NewEntryScreen() {
   }
 
   const isSeason = target.mediaType === 'tv_season';
+  const showPublicControls = Boolean(meta?.enabled && meta.serverUrl.trim().length > 0);
   const subtitle = isSeason
     ? `Season ${target.seasonNumber}${target.seasonName ? ` · ${target.seasonName}` : ''}`
     : target.year;
@@ -185,6 +199,14 @@ export default function NewEntryScreen() {
             multiline
           />
         </View>
+
+        {showPublicControls ? (
+          <PublicToggle
+            value={isPublic}
+            onValueChange={setIsPublic}
+            style={{ marginTop: t.spacing.lg }}
+          />
+        ) : null}
 
         <Button
           title={isSeason ? 'Save log' : 'Save entry'}
