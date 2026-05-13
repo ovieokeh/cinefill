@@ -13,6 +13,11 @@ export default function TabLayout() {
           backgroundColor: tokens.colors.bg.surface,
           borderTopColor: tokens.colors.border.subtle,
         },
+        // Tab screens are headerless — they reclaim the top space and own
+        // their own status-bar safe-area via `<Screen edges={['top']} />`.
+        // Header styling defaults are kept for any future Tabs.Screen that
+        // opts back into a header with `headerShown: true`.
+        headerShown: false,
         headerStyle: { backgroundColor: tokens.colors.bg.app },
         headerTitleStyle: {
           color: tokens.colors.text.primary,

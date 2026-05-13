@@ -302,7 +302,7 @@ export default function YouScreen() {
   // ----- empty state -----
   if (entries.length === 0) {
     return (
-      <Screen padded={false} edges={[]}>
+      <Screen padded={false} edges={['top']}>
         <SettingsRow onPress={openSettings} />
         <View style={[styles.centered, { paddingHorizontal: t.spacing.lg }]}>
           <Text variant="titleLg">No entries yet</Text>
@@ -335,7 +335,7 @@ export default function YouScreen() {
   const backfilling = backfillRemaining > 0;
 
   return (
-    <Screen padded={false} edges={[]}>
+    <Screen padded={false} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
         <SettingsRow onPress={openSettings} />
         <TasteCard

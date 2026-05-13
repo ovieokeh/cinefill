@@ -389,7 +389,9 @@ export function tasteProfile(
   const loyaltyShare = ratedWithDirector > 0 ? topDirectorCount / ratedWithDirector : 0;
   let loyaltyReadout = '—';
   if (topDirector && loyaltyShare >= 0.3) {
-    loyaltyReadout = `Follows directors — ${topDirector} is ${Math.round(loyaltyShare * 100)}% of your highly-rated watches`;
+    // The share is already surfaced as the cell's value, so the readout names
+    // the director instead of restating the percentage.
+    loyaltyReadout = `Follows ${topDirector}`;
   } else if (topDirector && loyaltyShare >= 0.1) {
     loyaltyReadout = 'Some directors stand out';
   } else if (ratedWithDirector > 0) {

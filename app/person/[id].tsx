@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import {
@@ -19,7 +20,12 @@ import {
   SectionEyebrow,
 } from '@/components';
 import { useTheme } from '@/theme';
+import { useScrollTitle } from '@/lib/useScrollTitle';
 import { getPersonDetails, type PersonCredit, type PersonDetails } from '@/lib/tmdb';
+
+// Person hero is a poster + name row (≈ 120–140pt tall); flip the nav title
+// slightly earlier than the movie/tv detail backdrop heroes.
+const PERSON_HERO_THRESHOLD = 120;
 
 const BIO_PREVIEW_CHARS = 250;
 
@@ -75,6 +81,8 @@ export default function PersonScreen() {
   const [loading, setLoading] = useState(true);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+
+  const { scrollHandler, showTitle } = useScrollTitle(PERSON_HERO_THRESHOLD);
 
   useEffect(() => {
     if (!validId) return;
@@ -212,9 +220,13 @@ export default function PersonScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: '' }} />
+      <Stack.Screen options={{ title: showTitle ? person.name : '' }} />
       <Screen padded={false}>
-        <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
+        >
           <View
             style={[
               styles.heroRow,
@@ -271,7 +283,7 @@ export default function PersonScreen() {
               <MoviePosterRow items={g.items} />
             </View>
           ))}
-        </ScrollView>
+        </Animated.ScrollView>
       </Screen>
     </>
   );

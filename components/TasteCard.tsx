@@ -1,10 +1,16 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { Text } from './Text';
 import { Button } from './Button';
+import { CinefillMark } from './CinefillMark';
+import { LiveDot } from './LiveDot';
+import { PositionScale } from './PositionScale';
+import { BarFill } from './BarFill';
+import { StarRow } from './StarRow';
+import { TasteMetricSheet, type TasteMetricSheetHandle } from './TasteMetricSheet';
 import {
   PRIMARY_GENRE_FOR_CLUSTER,
   type TasteProfile,
@@ -26,33 +32,38 @@ const CLUSTER_NOUN: Record<MoodCluster, string> = {
 const CLUSTER_BLURB: Record<MoodCluster, string> = {
   storyDriven: 'Sees the wide shot. Sits through the credits.',
   intense: 'Reads the menace. Loves when the lights stay off.',
-  feelGood: 'Follows the laughter trail. Stays for the encore.',
-  escapist: 'Trades clocks for worlds. Watches twice.',
+  feelGood: 'In for the laughs. Stays for the encore.',
+  escapist: 'Goes long. Rewatches without flinching.',
   cerebral: 'Holds onto the questions. Argues after.',
 };
 
 // ---------- value helpers ----------
 
-function headlineLeadLine(profile: TasteProfile, hasEra: boolean): string {
+function headlineLeadParts(
+  profile: TasteProfile,
+  hasEra: boolean,
+): { body: string; punct: string } {
   const noun = profile.genreLead.cluster
     ? CLUSTER_NOUN[profile.genreLead.cluster]
     : 'Your taste is taking shape';
-  return noun + (hasEra ? ',' : '.');
+  return { body: noun, punct: hasEra ? ',' : '.' };
 }
 
-function headlineEraLine(profile: TasteProfile): string | null {
+function headlineEraParts(profile: TasteProfile): { body: string; punct: string } | null {
   const d = profile.era.modalDecade;
-  return d != null ? `${d}s-leaning.` : null;
+  return d != null ? { body: `${d}s-leaning`, punct: '.' } : null;
 }
 
-function decadeIndex(decade: number | null): number {
-  if (decade == null) return -1;
-  // 5 buckets ending at 2010s+. Anything older lands on the first dot.
+// Ordinal ratios for the slider-style PositionScale glyph.
+// Returns null when the value is unknown so the glyph can hide its dot.
+function decadeRatio(decade: number | null): number | null {
+  if (decade == null) return null;
+  // 5 buckets ending at 2010s+. Anything older lands on the leftmost stop.
   if (decade <= 1970) return 0;
-  if (decade <= 1980) return 1;
-  if (decade <= 1990) return 2;
-  if (decade <= 2000) return 3;
-  return 4;
+  if (decade <= 1980) return 0.25;
+  if (decade <= 1990) return 0.5;
+  if (decade <= 2000) return 0.75;
+  return 1;
 }
 
 function runtimeRatio(meanMinutes: number | null): number {
@@ -61,24 +72,25 @@ function runtimeRatio(meanMinutes: number | null): number {
   return Math.max(0, Math.min(1, (meanMinutes - 60) / 120));
 }
 
-function recencyIndex(lag: number | null): number {
-  if (lag == null) return -1;
+function recencyRatio(lag: number | null): number | null {
+  if (lag == null) return null;
+  // Left = chases the new; right = deep catalog.
   if (lag <= 1) return 0;
-  if (lag <= 5) return 1;
-  if (lag <= 15) return 2;
-  return 3;
+  if (lag <= 5) return 0.34;
+  if (lag <= 15) return 0.67;
+  return 1;
 }
 
-function reachIndex(bucket: TasteProfile['popularity']['bucket']): number {
+function reachRatio(bucket: TasteProfile['popularity']['bucket']): number | null {
   switch (bucket) {
     case 'cult':
       return 0;
     case 'balanced':
-      return 1;
+      return 0.5;
     case 'mainstream':
-      return 2;
+      return 1;
     default:
-      return -1;
+      return null;
   }
 }
 
@@ -94,9 +106,9 @@ function formatReachValue(bucket: TasteProfile['popularity']['bucket']): string 
     case 'cult':
       return 'Indie';
     case 'balanced':
-      return 'Balanced';
+      return 'Mixed';
     case 'mainstream':
-      return 'Mainstream';
+      return 'Wide';
     default:
       return '—';
   }
@@ -119,6 +131,7 @@ export function TasteCard({
 }) {
   const t = useTheme();
   const router = useRouter();
+  const metricSheetRef = useRef<TasteMetricSheetHandle>(null);
 
   // Edge-to-edge frame; bg.surface contrasts with bg.app to feel like a printed page.
   const frame = [
@@ -133,18 +146,25 @@ export function TasteCard({
   if (profile.confidence === 'empty') {
     return (
       <View style={frame}>
-        <Text
-          variant="label"
-          tone="muted"
-          style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}
-        >
-          Your taste
+        <View style={[styles.eyebrowRow, { gap: t.spacing.sm }]}>
+          <CinefillMark size={t.spacing.lg} />
+          <Text
+            variant="label"
+            tone="muted"
+            style={{ textTransform: 'uppercase', letterSpacing: t.tracking.label }}
+          >
+            Your taste
+          </Text>
+        </View>
+        <Text variant="displayItalicLg" style={{ marginTop: t.spacing.md }}>
+          Rate a few films
+          <Text tone="accent">,</Text>
+          {'\n'}cinefill listens
+          <Text tone="accent">.</Text>
         </Text>
-        <Text variant="displayMd" style={{ marginTop: t.spacing.sm }}>
-          Rate a few films to start your profile
-        </Text>
-        <Text variant="body" tone="muted" style={{ marginTop: t.spacing.sm }}>
-          Once you rate, cinefill builds a fingerprint of what you actually like — genres, eras, runtimes, more.
+        <Text variant="body" tone="muted" style={{ marginTop: t.spacing.md }}>
+          Each rating sharpens a fingerprint of what you actually like — your genres, your decades,
+          the runtimes you reach for, the directors you keep coming back to.
         </Text>
         <Button
           title="Find films"
@@ -156,39 +176,195 @@ export function TasteCard({
     );
   }
 
-  const eraLine = headlineEraLine(profile);
-  const leadLine = headlineLeadLine(profile, eraLine != null);
+  const eraLine = headlineEraParts(profile);
+  const leadLine = headlineLeadParts(profile, eraLine != null);
   const blurb = profile.genreLead.cluster
     ? CLUSTER_BLURB[profile.genreLead.cluster]
     : null;
 
-  const genreLeadOnPress = (() => {
-    const c = profile.genreLead.cluster;
-    if (c == null) return undefined;
-    const g = PRIMARY_GENRE_FOR_CLUSTER[c];
-    return () =>
-      router.push({
-        pathname: '/(tabs)/search',
-        params: { mediaType: 'movie', genreId: String(g.id), genreName: g.name },
-      });
-  })();
-  const eraOnPress =
-    profile.era.modalDecade != null
-      ? () =>
-          router.push({
-            pathname: '/(tabs)/search',
-            params: { decade: String(profile.era.modalDecade) },
-          })
+  const confidenceNote =
+    profile.confidence === 'low'
+      ? `Sharpens as you rate more — currently ${profile.ratedCount} rated.`
       : undefined;
-  const loyaltyOnPress =
-    profile.loyalty.topDirectorId != null
-      ? () => router.push(`/person/${profile.loyalty.topDirectorId}`)
-      : undefined;
+
+  // ----- per-metric sheet openers -----
+  // Each opens the bottom sheet for its metric. The existing search/person
+  // navigation is preserved as an explicit CTA inside the sheet so the
+  // destination is no longer a surprise.
+
+  const openGenreLead = () => {
+    const cluster = profile.genreLead.cluster;
+    const sharePct = Math.round(profile.genreLead.share * 100);
+    metricSheetRef.current?.present({
+      metric: 'genreLead',
+      label: 'Genre lean',
+      heroValue: cluster
+        ? `${CLUSTER_NOUN[cluster]}${sharePct ? ` · ${sharePct}%` : ''}`
+        : 'Taking shape',
+      readout: profile.genreLead.readout,
+      explainer:
+        'Your dominant mood cluster across rated films. Counts are weighted by your star rating; a film that fits multiple clusters splits the credit.',
+      scale: { kind: 'none' },
+      confidenceNote,
+      cta:
+        cluster != null
+          ? {
+              label: `Find more ${PRIMARY_GENRE_FOR_CLUSTER[cluster].name} films`,
+              onPress: () => {
+                const g = PRIMARY_GENRE_FOR_CLUSTER[cluster];
+                router.push({
+                  pathname: '/(tabs)/search',
+                  params: {
+                    mediaType: 'movie',
+                    genreId: String(g.id),
+                    genreName: g.name,
+                  },
+                });
+              },
+            }
+          : undefined,
+    });
+  };
+
+  const openEra = () => {
+    const decade = profile.era.modalDecade;
+    metricSheetRef.current?.present({
+      metric: 'era',
+      label: 'Era',
+      heroValue: decade != null ? `${decade}s` : '—',
+      readout: profile.era.readout,
+      explainer:
+        profile.era.spread > 1
+          ? `The decade your ratings cluster around, weighted by stars. ${profile.era.spread} decades touched overall.`
+          : 'The decade your ratings cluster around, weighted by stars.',
+      scale: {
+        kind: 'position',
+        ratio: decadeRatio(decade),
+        leftLabel: '1970s',
+        rightLabel: '2010s+',
+      },
+      confidenceNote,
+      cta:
+        decade != null
+          ? {
+              label: `Find more ${decade}s films`,
+              onPress: () =>
+                router.push({
+                  pathname: '/(tabs)/search',
+                  params: { decade: String(decade) },
+                }),
+            }
+          : undefined,
+    });
+  };
+
+  const openRuntime = () => {
+    const mean = profile.runtime.meanMinutes;
+    const std = profile.runtime.stdMinutes;
+    const spreadSentence =
+      std != null && std > 25 ? ` Typical spread is ±${Math.round(std)} minutes.` : '';
+    metricSheetRef.current?.present({
+      metric: 'runtime',
+      label: 'Runtime',
+      heroValue: mean != null ? `${Math.round(mean)}m` : '—',
+      readout: profile.runtime.readout,
+      explainer: `Mean runtime across the films you've rated — movies only, seasons aren't counted.${spreadSentence}`,
+      scale: {
+        kind: 'fill',
+        ratio: runtimeRatio(mean),
+        leftLabel: '60 min',
+        rightLabel: '180 min',
+      },
+      confidenceNote,
+    });
+  };
+
+  const openRecency = () => {
+    metricSheetRef.current?.present({
+      metric: 'recency',
+      label: 'Recency',
+      heroValue: formatRecencyValue(profile.recencyVelocity.medianLagYears),
+      readout: profile.recencyVelocity.readout,
+      explainer:
+        "Median gap between a film's release year and the year you watched it. Low = chasing new releases; high = digging through the catalog.",
+      scale: {
+        kind: 'position',
+        ratio: recencyRatio(profile.recencyVelocity.medianLagYears),
+        leftLabel: 'Now',
+        rightLabel: 'Deep catalog',
+      },
+      confidenceNote,
+    });
+  };
+
+  const openReach = () => {
+    metricSheetRef.current?.present({
+      metric: 'reach',
+      label: 'Reach',
+      heroValue: formatReachValue(profile.popularity.bucket),
+      readout: profile.popularity.readout,
+      explainer:
+        'Median TMDB popularity across your rated films. Indie ≈ festival-circuit, Mixed = a bit of both, Wide ≈ wide-release crowd-pleasers.',
+      scale: {
+        kind: 'position',
+        ratio: reachRatio(profile.popularity.bucket),
+        leftLabel: 'Indie',
+        rightLabel: 'Wide',
+      },
+      confidenceNote,
+    });
+  };
+
+  const openLoyalty = () => {
+    const director = profile.loyalty.topDirector;
+    const share = profile.loyalty.topShare;
+    const sharePct = Math.round(share * 100);
+    // Concrete "X of what" answer — share is *of your rated films with a known director*.
+    const explainer = director
+      ? `Share of your rated films directed by your most-recurring filmmaker. So ${sharePct}% means about 1 in every ${Math.max(2, Math.round(1 / Math.max(share, 0.01)))} of your rated films is theirs.`
+      : 'Share of your rated films directed by your most-recurring filmmaker. As you rate more, a favourite director may emerge.';
+    metricSheetRef.current?.present({
+      metric: 'loyalty',
+      label: 'Loyalty',
+      heroValue: director ? `${sharePct}%` : '—',
+      readout: profile.loyalty.readout,
+      explainer,
+      scale: {
+        kind: 'fill',
+        ratio: share,
+        leftLabel: 'Spread out',
+        rightLabel: 'Single director',
+      },
+      confidenceNote,
+      cta:
+        profile.loyalty.topDirectorId != null && director
+          ? {
+              label: `See ${director}`,
+              onPress: () => router.push(`/person/${profile.loyalty.topDirectorId}`),
+            }
+          : undefined,
+    });
+  };
+
+  const openStyle = () => {
+    metricSheetRef.current?.present({
+      metric: 'style',
+      label: 'Style',
+      heroValue:
+        profile.ratingStyle.median > 0 ? profile.ratingStyle.median.toFixed(1) : '—',
+      readout: profile.ratingStyle.readout,
+      explainer:
+        'Median of your star ratings. The spread shows whether your ratings cluster tight or split between strong loves and skips.',
+      scale: { kind: 'stars', median: profile.ratingStyle.median },
+      confidenceNote,
+    });
+  };
 
   return (
     <View style={frame}>
-      {/* Top eyebrow row: section name + rule + meta */}
-      <View style={[styles.eyebrowRow, { gap: t.spacing.md }]}>
+      {/* Top eyebrow row: brand mark + section name + rule + live meta */}
+      <View style={[styles.eyebrowRow, { gap: t.spacing.sm }]}>
+        <CinefillMark size={t.spacing.lg} />
         <Text
           variant="label"
           tone="secondary"
@@ -201,8 +377,10 @@ export function TasteCard({
             flex: 1,
             height: StyleSheet.hairlineWidth,
             backgroundColor: t.colors.border.strong,
+            marginHorizontal: t.spacing.xs,
           }}
         />
+        <LiveDot size={t.spacing.xs} />
         <Text
           variant="caption"
           tone="muted"
@@ -214,33 +392,34 @@ export function TasteCard({
 
       {/* Hero headline — the screenshotable centerpiece */}
       <Pressable
-        onPress={genreLeadOnPress}
-        disabled={!genreLeadOnPress}
-        accessibilityRole={genreLeadOnPress ? 'button' : undefined}
-        accessibilityLabel={`${leadLine} ${eraLine ?? ''}`}
+        onPress={openGenreLead}
+        accessibilityRole="button"
+        accessibilityLabel={`${leadLine.body}${leadLine.punct} ${eraLine ? eraLine.body + eraLine.punct : ''}. Tap for details.`}
         style={({ pressed }) => ({
           marginTop: t.spacing.xl,
-          opacity: pressed && genreLeadOnPress ? t.opacity.pressed : 1,
+          opacity: pressed ? t.opacity.pressed : 1,
         })}
       >
-        <Text variant="displayMd" style={{ color: t.colors.accent.base }}>
-          {leadLine}
+        <Text variant="displayItalicLg" tone="primary">
+          {leadLine.body}
+          <Text tone="accent">{leadLine.punct}</Text>
         </Text>
         {eraLine ? (
-          <Text variant="displayMd" style={{ color: t.colors.accent.base }}>
-            {eraLine}
+          <Text variant="displayItalicLg" tone="primary">
+            {eraLine.body}
+            <Text tone="accent">{eraLine.punct}</Text>
           </Text>
         ) : null}
       </Pressable>
 
-      {/* Personality blurb */}
+      {/* Personality blurb — leading em-dash gives it a pull-quote feel */}
       {blurb ? (
         <Text
           variant="body"
           tone="secondary"
           style={{ marginTop: t.spacing.md, fontStyle: 'italic' }}
         >
-          {blurb}
+          {`— ${blurb}`}
         </Text>
       ) : null}
 
@@ -268,8 +447,8 @@ export function TasteCard({
             label="Era"
             value={profile.era.modalDecade ? `${profile.era.modalDecade}s` : '—'}
             readout={profile.era.readout}
-            glyph={<DotScale total={5} active={decadeIndex(profile.era.modalDecade)} />}
-            onPress={eraOnPress}
+            glyph={<PositionScale ratio={decadeRatio(profile.era.modalDecade)} />}
+            onPress={openEra}
           />
           <TasteCell
             label="Runtime"
@@ -280,17 +459,16 @@ export function TasteCard({
             }
             readout={profile.runtime.readout}
             glyph={<BarFill ratio={runtimeRatio(profile.runtime.meanMinutes)} />}
+            onPress={openRuntime}
           />
           <TasteCell
             label="Recency"
             value={formatRecencyValue(profile.recencyVelocity.medianLagYears)}
             readout={profile.recencyVelocity.readout}
             glyph={
-              <DotScale
-                total={4}
-                active={recencyIndex(profile.recencyVelocity.medianLagYears)}
-              />
+              <PositionScale ratio={recencyRatio(profile.recencyVelocity.medianLagYears)} />
             }
+            onPress={openRecency}
           />
         </View>
         <View style={[styles.gridRow, { gap: t.spacing.sm }]}>
@@ -298,7 +476,8 @@ export function TasteCard({
             label="Reach"
             value={formatReachValue(profile.popularity.bucket)}
             readout={profile.popularity.readout}
-            glyph={<DotScale total={3} active={reachIndex(profile.popularity.bucket)} />}
+            glyph={<PositionScale ratio={reachRatio(profile.popularity.bucket)} />}
+            onPress={openReach}
           />
           <TasteCell
             label="Loyalty"
@@ -309,7 +488,7 @@ export function TasteCard({
             }
             readout={profile.loyalty.readout}
             glyph={<BarFill ratio={profile.loyalty.topShare} />}
-            onPress={loyaltyOnPress}
+            onPress={openLoyalty}
           />
           <TasteCell
             label="Style"
@@ -319,14 +498,15 @@ export function TasteCard({
                 : '—'
             }
             readout={profile.ratingStyle.readout}
-            glyph={<StarGlyph median={profile.ratingStyle.median} />}
+            glyph={<StarRow value={profile.ratingStyle.median} />}
+            onPress={openStyle}
           />
         </View>
       </View>
 
-      {/* Footer receipt */}
+      {/* Footer receipt — printed-stub vibe via mono numerals */}
       <Text
-        variant="caption"
+        variant="mono"
         tone="muted"
         style={{
           marginTop: t.spacing.xl,
@@ -337,6 +517,8 @@ export function TasteCard({
         {totalMovies} films · {Math.round(filmHours)}h  ·  {totalSeasons} season
         {totalSeasons === 1 ? '' : 's'} · {Math.round(tvHours)}h
       </Text>
+
+      <TasteMetricSheet ref={metricSheetRef} />
     </View>
   );
 }
@@ -392,6 +574,12 @@ function TasteCell({
           {readout}
         </Text>
       ) : null}
+      {/* Tap-to-expand affordance — subtle chevron tucked in the top-right. */}
+      {onPress ? (
+        <View style={{ position: 'absolute', top: t.spacing.sm, right: t.spacing.sm }}>
+          <Ionicons name="chevron-up" size={t.spacing.md} color={t.colors.text.muted} />
+        </View>
+      ) : null}
     </View>
   );
   if (!onPress) return inner;
@@ -399,6 +587,7 @@ function TasteCell({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityHint="Opens metric details"
       accessibilityLabel={`${label}: ${readout ?? value}`}
       style={({ pressed }) => [
         styles.pressableCell,
@@ -407,69 +596,6 @@ function TasteCell({
     >
       {inner}
     </Pressable>
-  );
-}
-
-// ---------- glyphs ----------
-
-function DotScale({ total, active }: { total: number; active: number }) {
-  const t = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', gap: t.spacing.xs, alignItems: 'center' }}>
-      {Array.from({ length: total }).map((_, i) => (
-        <View
-          key={i}
-          style={{
-            width: t.spacing.xs,
-            height: t.spacing.xs,
-            borderRadius: t.radii.pill,
-            backgroundColor:
-              i === active ? t.colors.accent.base : t.colors.border.subtle,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
-function BarFill({ ratio }: { ratio: number }) {
-  const t = useTheme();
-  const clamped = Math.max(0, Math.min(1, ratio));
-  return (
-    <View
-      style={{
-        height: t.spacing.xxs,
-        backgroundColor: t.colors.border.subtle,
-        borderRadius: t.radii.pill,
-        overflow: 'hidden',
-      }}
-    >
-      <View
-        style={{
-          width: `${Math.round(clamped * 100)}%`,
-          height: '100%',
-          backgroundColor: t.colors.accent.base,
-          borderRadius: t.radii.pill,
-        }}
-      />
-    </View>
-  );
-}
-
-function StarGlyph({ median }: { median: number }) {
-  const t = useTheme();
-  const filled = Math.round(median);
-  return (
-    <View style={{ flexDirection: 'row', gap: t.spacing.xxs }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Ionicons
-          key={i}
-          name={i < filled ? 'star' : 'star-outline'}
-          size={t.spacing.sm}
-          color={i < filled ? t.colors.accent.base : t.colors.text.muted}
-        />
-      ))}
-    </View>
   );
 }
 

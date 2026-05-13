@@ -151,7 +151,7 @@ export default function DiaryScreen() {
   const filteredOut = totalEntries > 0 && sorted.length === 0;
 
   return (
-    <Screen padded={false} edges={[]}>
+    <Screen padded={false} edges={['top']}>
       {totalEntries > 0 ? (
         <FilterBar
           filters={

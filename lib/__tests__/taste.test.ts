@@ -334,7 +334,7 @@ describe('tasteProfile — loyalty', () => {
     );
     expect(p.loyalty.topDirector).toBe('Greta Gerwig');
     expect(p.loyalty.topShare).toBeCloseTo(2 / 3, 5);
-    expect(p.loyalty.readout).toContain('Follows directors');
+    expect(p.loyalty.readout).toBe('Follows Greta Gerwig');
   });
 
   test('breadth viewer (<10%)', () => {

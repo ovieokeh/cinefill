@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ScrollView,
   View,
   StyleSheet,
   Pressable,
   Alert,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
@@ -25,6 +25,7 @@ import {
   YourLogBlock,
 } from '@/components';
 import { useTheme } from '@/theme';
+import { useScrollTitle } from '@/lib/useScrollTitle';
 import { getSeasonDetails, type SeasonDetails, type TvEpisode } from '@/lib/tmdb';
 import {
   deleteEntry,
@@ -38,6 +39,11 @@ import {
 } from '@/db/standouts';
 import { haptic } from '@/lib/haptics';
 import { useFilmContext } from '@/lib/film-context';
+
+// Season hero is a poster + show + season-name row (≈ 120pt tall); match the
+// person-detail threshold so the title flips on at roughly the same scroll
+// distance across short-hero detail pages.
+const SEASON_HERO_THRESHOLD = 120;
 
 export default function SeasonDetailScreen() {
   const t = useTheme();
@@ -67,6 +73,8 @@ export default function SeasonDetailScreen() {
   const [standoutKeys, setStandoutKeys] = useState<Set<number>>(new Set());
 
   const actionSheetRef = useRef<ActionSheetHandle>(null);
+
+  const { scrollHandler, showTitle: showNavTitle } = useScrollTitle(SEASON_HERO_THRESHOLD);
 
   useFocusEffect(
     useCallback(() => {
@@ -224,6 +232,9 @@ export default function SeasonDetailScreen() {
   }
 
   const headerTitle = season?.name ?? `Season ${seasonNumber}`;
+  const scrollTitle = seedShowTitle
+    ? `${seedShowTitle} · ${headerTitle}`
+    : headerTitle;
 
   // Numbered eyebrows count visible sections only.
   let sectionNo = 0;
@@ -231,9 +242,13 @@ export default function SeasonDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: headerTitle }} />
+      <Stack.Screen options={{ title: showNavTitle ? scrollTitle : '' }} />
       <Screen padded={false}>
-        <ScrollView contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}>
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
+        >
           <View
             style={[
               styles.row,
@@ -307,7 +322,7 @@ export default function SeasonDetailScreen() {
               </View>
             )
           ) : null}
-        </ScrollView>
+        </Animated.ScrollView>
       </Screen>
       <ActionSheet ref={actionSheetRef} />
     </>

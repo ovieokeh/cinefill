@@ -4,14 +4,11 @@ import {
   StyleSheet,
   Pressable,
 } from 'react-native';
-import Animated, {
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedScrollHandler,
-  useSharedValue,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+
+import { useScrollTitle } from '@/lib/useScrollTitle';
 
 import {
   Screen,
@@ -46,7 +43,6 @@ import {
 } from '@/db/diary';
 import { listStandoutsForShow, type EpisodeStandout } from '@/db/standouts';
 
-const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
 const FAB_SIZE = 56;
 const FAB_ICON_SIZE = 26;
@@ -72,7 +68,6 @@ export default function TvScreen() {
   const [details, setDetails] = useState<TvDetails | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
-  const [showNavTitle, setShowNavTitle] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [seasonEntries, setSeasonEntries] = useState<DiaryEntry[]>([]);
   const [seasonStats, setSeasonStats] = useState<{ mean: number; count: number }>({
@@ -81,20 +76,7 @@ export default function TvScreen() {
   });
   const [standouts, setStandouts] = useState<EpisodeStandout[]>([]);
 
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      scrollY.value = e.contentOffset.y;
-    },
-  });
-  useAnimatedReaction(
-    () => scrollY.value > HERO_COLLAPSE_THRESHOLD,
-    (current, previous) => {
-      if (current !== previous) {
-        runOnJS(setShowNavTitle)(current);
-      }
-    },
-  );
+  const { scrollY, scrollHandler, showTitle: showNavTitle } = useScrollTitle();
 
   useFocusEffect(
     useCallback(() => {

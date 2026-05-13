@@ -55,34 +55,40 @@ export const colors = {
   // catalogues are unioned: ids that exist in both (e.g. Drama 18) only appear
   // once; TV-only ids (10759, 10762, ...) are listed below the movie set.
   // Unknown ids fall back to `genreFallback`.
+  //
+  // Each colour is tuned to clear WCAG AA (≥4.5:1) for caption-size text on
+  // bg.elevated (#1E232B), the lightest of the three dark surfaces. Several
+  // moodier hues had to be lifted out of their original "blood / rust / deep
+  // grey" zone to pass — the trade-off is identity vs readability on the
+  // darkest text-on-card cases (WatchlistRow, genre chips in detail pages).
   genre: {
-    28: '#D8493B',     // Action
+    28: '#DE6559',     // Action            (was #D8493B — 3.71:1 on bg.elevated)
     12: '#E08E47',     // Adventure
     16: '#5DBED1',     // Animation
     35: '#E0B354',     // Comedy
-    80: '#6C7280',     // Crime
+    80: '#838A9C',     // Crime             (was #6C7280)
     99: '#7A8FA8',     // Documentary
-    18: '#B25A6E',     // Drama
+    18: '#BF7686',     // Drama             (was #B25A6E)
     10751: '#88C97A',  // Family
-    14: '#A073C9',     // Fantasy
+    14: '#A57ACC',     // Fantasy           (was #A073C9)
     36: '#B58836',     // History
-    27: '#8C2A24',     // Horror
+    27: '#D76A63',     // Horror            (was #8C2A24 — 1.86:1, worst case)
     10402: '#E8729F',  // Music
-    9648: '#5E6CB8',   // Mystery
+    9648: '#7E89C6',   // Mystery           (was #5E6CB8)
     10749: '#E8889B',  // Romance
     878: '#4D9CC8',    // Science Fiction
-    10770: '#5D636C',  // TV Movie
-    53: '#A07238',     // Thriller
-    10752: '#6B7548',  // War
+    10770: '#7F8B9B',  // TV Movie          (was #5D636C)
+    53: '#B78240',     // Thriller          (was #A07238)
+    10752: '#859159',  // War               (was #6B7548)
     37: '#C39657',     // Western
-    10759: '#D8493B',  // TV: Action & Adventure
+    10759: '#DE6559',  // TV: Action & Adventure  (was #D8493B)
     10762: '#88C5D8',  // TV: Kids
     10763: '#7A8FA8',  // TV: News
     10764: '#E08E47',  // TV: Reality
-    10765: '#6A7DC8',  // TV: Sci-Fi & Fantasy
+    10765: '#7587CC',  // TV: Sci-Fi & Fantasy   (was #6A7DC8)
     10766: '#E8729F',  // TV: Soap
-    10767: '#6C7280',  // TV: Talk
-    10768: '#6B7548',  // TV: War & Politics
+    10767: '#838A9C',  // TV: Talk          (was #6C7280)
+    10768: '#859159',  // TV: War & Politics  (was #6B7548)
   } as Record<number, string>,
   genreFallback: '#9CA3AF',
 } as const;
@@ -112,16 +118,33 @@ export const radii = {
 // via useFonts(). Adding a new weight: install the per-family subpackage, register the
 // weight import in app/_layout.tsx, then reference its name here.
 const fontDisplayBold = 'Fraunces_700Bold';
+const fontDisplayBoldItalic = 'Fraunces_700Bold_Italic';
 const fontDisplaySemi = 'Fraunces_600SemiBold';
 const fontBody = 'Inter_400Regular';
 const fontBodySemi = 'Inter_600SemiBold';
 
 export const typography: Record<
-  'displayLg' | 'displayMd' | 'titleLg' | 'titleMd' | 'body' | 'bodyStrong' | 'label' | 'caption' | 'mono',
+  | 'displayLg'
+  | 'displayMd'
+  | 'displayItalicLg'
+  | 'titleLg'
+  | 'titleMd'
+  | 'body'
+  | 'bodyStrong'
+  | 'label'
+  | 'caption'
+  | 'mono',
   TextStyle
 > = {
   displayLg: { fontFamily: fontDisplayBold, fontSize: 32, lineHeight: 38, fontWeight: '700' },
   displayMd: { fontFamily: fontDisplayBold, fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  displayItalicLg: {
+    fontFamily: fontDisplayBoldItalic,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    fontStyle: 'italic',
+  },
   titleLg: { fontFamily: fontDisplaySemi, fontSize: 20, lineHeight: 26, fontWeight: '600' },
   titleMd: { fontFamily: fontDisplaySemi, fontSize: 16, lineHeight: 22, fontWeight: '600' },
   body: { fontFamily: fontBody, fontSize: 15, lineHeight: 22, fontWeight: '400' },

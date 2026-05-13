@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import {
   Fraunces_600SemiBold,
   Fraunces_700Bold,
+  Fraunces_700Bold_Italic,
 } from '@expo-google-fonts/fraunces';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import 'react-native-reanimated';
@@ -28,6 +29,7 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Fraunces_600SemiBold,
     Fraunces_700Bold,
+    Fraunces_700Bold_Italic,
   });
 
   useEffect(() => {

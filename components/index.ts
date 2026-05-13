@@ -27,6 +27,17 @@ export { Skeleton, SkeletonText, SkeletonPoster } from './Skeleton';
 export { ActivityLineChart } from './ActivityLineChart';
 export { GenreDonut } from './GenreDonut';
 export { TasteCard } from './TasteCard';
+export { CinefillMark } from './CinefillMark';
+export { LiveDot } from './LiveDot';
+export { PositionScale } from './PositionScale';
+export { BarFill } from './BarFill';
+export { StarRow } from './StarRow';
+export { TasteMetricSheet } from './TasteMetricSheet';
+export type {
+  TasteMetricSheetHandle,
+  TasteMetricSheetArgs,
+  TasteMetricKey,
+} from './TasteMetricSheet';
 export { FilmBadge } from './FilmBadge';
 export { Wordmark } from './Wordmark';
 export { Chip } from './Chip';

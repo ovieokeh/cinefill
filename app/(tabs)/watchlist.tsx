@@ -150,7 +150,7 @@ export default function WatchlistScreen() {
   const filteredOut = totalItems > 0 && sorted.length === 0;
 
   return (
-    <Screen padded={false} edges={[]}>
+    <Screen padded={false} edges={['top']}>
       {totalItems > 0 ? (
         <FilterBar
           filters={

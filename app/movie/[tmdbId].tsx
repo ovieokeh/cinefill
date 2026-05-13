@@ -5,14 +5,11 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import Animated, {
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedScrollHandler,
-  useSharedValue,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+
+import { useScrollTitle } from '@/lib/useScrollTitle';
 
 import {
   Screen,
@@ -49,7 +46,6 @@ import {
 import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
 
-const HERO_COLLAPSE_THRESHOLD = 160;
 const SKELETON_BLOCK_HEIGHT = 96;
 const FAB_SIZE = 56;
 const FAB_ICON_SIZE = 26;
@@ -76,23 +72,9 @@ export default function MovieScreen() {
   const [details, setDetails] = useState<MovieDetails | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
-  const [showNavTitle, setShowNavTitle] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      scrollY.value = e.contentOffset.y;
-    },
-  });
-  useAnimatedReaction(
-    () => scrollY.value > HERO_COLLAPSE_THRESHOLD,
-    (current, previous) => {
-      if (current !== previous) {
-        runOnJS(setShowNavTitle)(current);
-      }
-    },
-  );
+  const { scrollY, scrollHandler, showTitle: showNavTitle } = useScrollTitle();
 
   useFocusEffect(
     useCallback(() => {
