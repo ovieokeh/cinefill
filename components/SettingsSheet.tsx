@@ -3,6 +3,7 @@ import {
   useCallback,
   useImperativeHandle,
   useRef,
+  useState,
 } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import {
@@ -21,7 +22,9 @@ import { Wordmark } from './Wordmark';
 import { deleteAllEntries } from '@/db/diary';
 import { deleteAllWatchlist } from '@/db/watchlist';
 import { deleteAllStandouts } from '@/db/standouts';
+import { exportCinefillData } from '@/lib/cinefill-export';
 import { useFilmContext } from '@/lib/film-context';
+import { haptic } from '@/lib/haptics';
 
 export type SettingsSheetHandle = {
   present: () => void;
@@ -37,6 +40,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
   const insets = useSafeAreaInsets();
   const modalRef = useRef<BottomSheetModal>(null);
   const { refresh } = useFilmContext();
+  const [exporting, setExporting] = useState(false);
 
   useImperativeHandle(ref, () => ({
     present: () => modalRef.current?.present(),
@@ -55,10 +59,36 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
     requestAnimationFrame(() => router.push('/import-letterboxd'));
   };
 
+  const handleSync = () => {
+    modalRef.current?.dismiss();
+    requestAnimationFrame(() => router.push('/sync-settings' as never));
+  };
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const result = await exportCinefillData();
+      haptic.success();
+      if (!result.shared) {
+        Alert.alert(
+          'Export ready',
+          `Created ${result.fileName}. Sharing is not available on this device.`,
+        );
+      }
+    } catch (err) {
+      console.warn('export failed', err);
+      haptic.warning();
+      Alert.alert('Export failed', 'Could not create the cinefill export. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleReset = () => {
     Alert.alert(
       'Reset all data?',
-      'Permanently deletes every diary entry, watchlist item, and standout episode. Cannot be undone.',
+      'Permanently deletes every diary entry, watchlist item, and standout episode. If sync is enabled, those deletions can sync to your server. Cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -149,6 +179,72 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
 
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Export data"
+          onPress={handleExport}
+          disabled={exporting}
+          style={({ pressed }) => [
+            styles.row,
+            {
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.md,
+              gap: t.spacing.md,
+              opacity: exporting ? 0.6 : 1,
+              backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
+            },
+          ]}
+        >
+          <Ionicons
+            name="archive-outline"
+            size={t.spacing.xl}
+            color={t.colors.text.primary}
+          />
+          <View style={styles.flex1}>
+            <Text variant="body">{exporting ? 'Exporting…' : 'Export data'}</Text>
+            <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+              Create a cinefill zip with JSON and CSV copies of your data.
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={t.spacing.lg}
+            color={t.colors.text.muted}
+          />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sync settings"
+          onPress={handleSync}
+          style={({ pressed }) => [
+            styles.row,
+            {
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.md,
+              gap: t.spacing.md,
+              backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
+            },
+          ]}
+        >
+          <Ionicons
+            name="sync-outline"
+            size={t.spacing.xl}
+            color={t.colors.text.primary}
+          />
+          <View style={styles.flex1}>
+            <Text variant="body">Sync</Text>
+            <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+              Optional autosync to a compatible server you choose.
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={t.spacing.lg}
+            color={t.colors.text.muted}
+          />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Reset all data"
           onPress={handleReset}
           style={({ pressed }) => [
@@ -171,7 +267,7 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
               Reset all data
             </Text>
             <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
-              Wipe diary, watchlist, and standout episodes. For starting over from a fresh import.
+              Wipe diary, watchlist, and standout episodes. Sync can carry this deletion to your server.
             </Text>
           </View>
         </Pressable>

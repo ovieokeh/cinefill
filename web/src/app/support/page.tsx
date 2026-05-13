@@ -74,11 +74,36 @@ export default function SupportPage() {
                   My data is gone
                 </h3>
                 <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
-                  cinefill stores everything locally on your iPhone. If you
-                  deleted the app, reinstalled it, or wiped the phone, the data
-                  goes with it. There&rsquo;s no remote backup &mdash; that
-                  trade-off is what keeps the app account-less. See the privacy
-                  page for the full reasoning.
+                  cinefill stores everything locally first. If sync was enabled
+                  and had completed, install cinefill again, enter the same
+                  server URL and token, then run Sync Now. If sync was never
+                  configured, or the data never reached your server, deleting
+                  the app or wiping the phone removes the only copy.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-display text-lg text-[var(--color-text)]">
+                  What does sync upload?
+                </h3>
+                <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
+                  Sync is optional. When enabled, cinefill mirrors diary
+                  entries, watchlist items, standout episodes, deletion markers,
+                  timestamps, and a random device ID to the server URL you
+                  enter. Cached TMDB metadata stays local. The privacy page has
+                  the full list.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-display text-lg text-[var(--color-text)]">
+                  How do I export my data?
+                </h3>
+                <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
+                  Open the gear in the You tab and tap <em>Export data</em>.
+                  cinefill creates a zip with JSON and CSV files for your
+                  diary, watchlist, and standout episodes, then opens the iOS
+                  share sheet so you can save or send it wherever you want.
                 </p>
               </div>
 
@@ -88,7 +113,9 @@ export default function SupportPage() {
                 </h3>
                 <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
                   Tap the gear in the You tab &rarr; <em>Reset all data</em>.
-                  Wipes diary, watchlist, and standout episodes in one go.
+                  Wipes diary, watchlist, and standout episodes in one go. If
+                  sync is enabled, those deletions can sync to other devices
+                  using the same server.
                 </p>
               </div>
 

@@ -4,12 +4,12 @@ import { Footer } from "@/components/footer";
 import { SectionEyebrow } from "@/components/section-eyebrow";
 
 const SUPPORT_EMAIL = "nerdbrainmatter@gmail.com";
-const LAST_UPDATED = "May 12, 2026";
+const LAST_UPDATED = "May 13, 2026";
 
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "cinefill is a local-first film and TV diary. No accounts. No analytics. No tracking. Your data never leaves your phone.",
+    "cinefill is a local-first film and TV diary. No accounts, analytics, or tracking. Optional sync sends only selected library data to a server you choose.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -28,19 +28,22 @@ export default function PrivacyPage() {
           </p>
 
           <p className="mt-8 text-[var(--color-text-soft)] leading-[1.75]">
-            cinefill is a local-first film and TV diary. Everything you log,
-            save, or set up lives on your iPhone, not on our servers.
-            We don&rsquo;t have servers for your data. We don&rsquo;t have
-            accounts. There&rsquo;s nothing for us to lose, sell, or hand over.
+            cinefill is a local-first film and TV diary. By default, everything
+            you log, save, or set up lives on your iPhone. There are no
+            accounts, no analytics, no advertising SDKs, and no tracking.
+            Remote sync is optional and only runs after you enter a compatible
+            server URL and personal token.
           </p>
 
           <section className="mt-12">
             <h2 className="font-display text-2xl">What we don&rsquo;t collect</h2>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
-              Nothing. No accounts. No email addresses (unless you write to us).
-              No analytics. No crash reporting. No advertising identifiers. No
-              location. No contacts. No photos. No microphone or camera. No
-              behavioural profile.
+              We don&rsquo;t collect accounts, email addresses (unless you write
+              to us), analytics, crash reports, advertising identifiers,
+              location, contacts, photos, microphone or camera data, or a
+              behavioural profile. If you enable remote sync to a server we
+              operate, we collect only the sync records needed to provide that
+              feature, described below.
             </p>
           </section>
 
@@ -49,20 +52,49 @@ export default function PrivacyPage() {
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
               Your diary entries, watchlist, ratings, notes, standout episodes,
               and cached TMDB metadata are stored in an on-device SQLite
-              database. They don&rsquo;t sync, they don&rsquo;t back up to us,
-              and they don&rsquo;t leave the device unless you explicitly
-              export or share them yourself.
+              database. With sync off, they don&rsquo;t back up to us and they
+              don&rsquo;t leave the device unless you explicitly export or share
+              them yourself.
             </p>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
-              If you delete cinefill or reset your phone, the data goes with
-              it. We can&rsquo;t recover it as we never had a copy.
+              If you delete cinefill or reset your phone before syncing or
+              exporting, the data goes with it. We can&rsquo;t recover data we
+              never received.
+            </p>
+          </section>
+
+          <section className="mt-12">
+            <h2 className="font-display text-2xl">Optional remote sync</h2>
+            <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
+              Sync is off until you turn it on. When enabled, cinefill sends
+              diary entries, watchlist items, TV episode standouts, deletion
+              markers, sync timestamps, and a random app-generated device ID to
+              the server URL you configure. Diary records may include titles,
+              TMDB IDs, watched dates, ratings, notes, year, poster path, and TV
+              season details.
+            </p>
+            <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
+              Your personal token is stored on-device using the platform secure
+              store and is sent only as an authorization header when talking to
+              your configured sync server. cinefill does not sync the local
+              media cache, raw TMDB responses, contacts, photos, location, or
+              analytics data.
+            </p>
+            <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
+              If you use your own server, that server&rsquo;s operator controls
+              how synced data is stored. If you use a server operated by us,
+              synced data is used only for app functionality: keeping your
+              diary, watchlist, and standout episodes mirrored between your
+              devices. We do not sell it, use it for advertising, or share it
+              with data brokers.
             </p>
           </section>
 
           <section className="mt-12">
             <h2 className="font-display text-2xl">Third parties</h2>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
-              cinefill talks to two third-party services and no others:
+              Depending on the features you use, cinefill may talk to these
+              external services:
             </p>
             <ul className="mt-5 space-y-4 text-[var(--color-text-soft)] leading-[1.7]">
               <li>
@@ -89,6 +121,12 @@ export default function PrivacyPage() {
                   themoviedb.org/privacy-policy
                 </a>
                 .
+              </li>
+              <li>
+                <strong className="text-[var(--color-text)]">Your sync server</strong>
+                . If you enable sync, cinefill sends the limited sync data
+                described above to the compatible server URL you enter. Sync is
+                not required to use the app.
               </li>
               <li>
                 <strong className="text-[var(--color-text)]">Apple TestFlight</strong>{" "}
@@ -128,11 +166,27 @@ export default function PrivacyPage() {
           </section>
 
           <section className="mt-12">
+            <h2 className="font-display text-2xl">Export data</h2>
+            <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
+              The export feature creates a local zip file with JSON and CSV
+              copies of your diary entries, watchlist items, and TV episode
+              standouts. It does not include the derived TMDB cache. cinefill
+              then hands that zip to the system share sheet so you choose where
+              it goes, such as Files, AirDrop, Mail, or another app.
+            </p>
+            <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
+              Exporting does not send data to us. If you share the zip with a
+              third-party app or cloud service, that destination handles it
+              under its own privacy policy.
+            </p>
+          </section>
+
+          <section className="mt-12">
             <h2 className="font-display text-2xl">Cookies + the website</h2>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
-              This website (cinefill.app) doesn&rsquo;t set any cookies and
-              doesn&rsquo;t run analytics. The app itself doesn&rsquo;t use
-              cookies at all &mdash; it&rsquo;s a native iOS app.
+              This website doesn&rsquo;t set any cookies and doesn&rsquo;t run
+              analytics. The app itself doesn&rsquo;t use cookies at all &mdash;
+              it&rsquo;s a native iOS app.
             </p>
           </section>
 
@@ -140,9 +194,9 @@ export default function PrivacyPage() {
             <h2 className="font-display text-2xl">Children</h2>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
               cinefill isn&rsquo;t directed at children under 13 and
-              doesn&rsquo;t knowingly collect data from them. Since we
-              don&rsquo;t collect data from anyone, this is automatically the
-              case.
+              doesn&rsquo;t knowingly collect data from them. Please don&rsquo;t
+              enable sync for a child&rsquo;s data or send us child data in a
+              support request.
             </p>
           </section>
 
@@ -151,9 +205,9 @@ export default function PrivacyPage() {
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
               If this policy changes, the updated version lives at this URL.
               The &ldquo;last updated&rdquo; date at the top will reflect the
-              change. Material changes like adding analytics or a new
-              third-party service will also be called out in the
-              app&rsquo;s release notes.
+              change. Material changes like adding analytics, changing sync
+              behavior, or adding a new third-party service will also be called
+              out in the app&rsquo;s release notes.
             </p>
           </section>
 
@@ -168,6 +222,8 @@ export default function PrivacyPage() {
                 {SUPPORT_EMAIL}
               </a>
               .
+              If you used a sync server operated by us and want synced data
+              deleted, include that in the email.
             </p>
           </section>
         </article>

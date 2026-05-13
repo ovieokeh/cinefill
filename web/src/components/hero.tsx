@@ -21,8 +21,8 @@ export function Hero() {
             diary.
           </p>
           <p className="mx-auto mt-8 max-w-md text-base leading-relaxed text-[var(--color-text-muted)] md:mx-0 md:text-[1.0625rem]">
-            Track films and TV without an audience. Local-first. No accounts,
-            nothing leaves your phone.
+            Track films and TV without an audience. Local-first, no accounts,
+            and optional personal sync only when you enable it.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-4 md:justify-start">
             <a

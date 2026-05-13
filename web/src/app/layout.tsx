@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s | cinefill",
   },
   description:
-    "Track films and TV without an audience. Log what you watched, save what's next, see your taste take shape. No accounts, nothing leaves the phone.",
+    "Track films and TV without an audience. Log what you watched, save what's next, see your taste take shape. Local-first with optional personal sync.",
   keywords: [
     "film diary",
     "movie diary",
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     siteName: "cinefill",
     title: "cinefill — a quiet film & TV diary",
     description:
-      "Log films and TV. Save what's next. Watch your taste take shape. No accounts, no audience, nothing leaves the phone.",
+      "Log films and TV. Save what's next. Watch your taste take shape. No accounts, no audience, optional personal sync.",
     images: [
       {
         url: "/og.png",

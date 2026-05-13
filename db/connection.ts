@@ -35,3 +35,17 @@ export function ensureSchema(
   schemaPromises.set(key, p);
   return p;
 }
+
+export async function ensureColumns(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  columns: Record<string, string>,
+): Promise<void> {
+  const existing = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  const names = new Set(existing.map((col) => col.name));
+  for (const [name, definition] of Object.entries(columns)) {
+    if (!names.has(name)) {
+      await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    }
+  }
+}

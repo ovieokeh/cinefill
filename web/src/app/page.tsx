@@ -21,13 +21,13 @@ const jsonLd = {
       name: "cinefill",
       url: "https://cinefill.ovie.dev",
       description:
-        "A quiet film & TV diary that stays on your phone. Log what you watched, save what's next, see your taste take shape.",
+        "A quiet film & TV diary that stays local first. Log what you watched, save what's next, see your taste take shape.",
     },
     {
       "@type": "SoftwareApplication",
       name: "cinefill",
       description:
-        "Track films and TV without an audience. Local-first diary, watchlist, and TMDB-backed search with no accounts or servers.",
+        "Track films and TV without an audience. Local-first diary, watchlist, TMDB-backed search, and optional personal sync.",
       applicationCategory: "EntertainmentApplication",
       operatingSystem: "iOS",
       url: "https://cinefill.ovie.dev",
@@ -37,7 +37,8 @@ const jsonLd = {
         "Taste profile — moods, genre lean, era, loyalty",
         "TMDB-backed discovery with watched / watchlist badges on every result",
         "Letterboxd import from the standard export zip",
-        "Local-first storage; no accounts, no servers, no analytics",
+        "Cinefill export zip with JSON and CSV files",
+        "Local-first storage; no accounts, no analytics; optional personal sync",
       ],
     },
   ],
@@ -178,6 +179,7 @@ export default function Home() {
                   "Half-star ratings, optional notes, the day you saw it",
                   "Films and TV-season entries side by side",
                   "Shared filter / sort across Diary and Watchlist",
+                  "Export your diary, watchlist, and standout episodes",
                   "Genres and runtime visible on every watchlist row",
                 ].map((b) => (
                   <li
@@ -273,13 +275,13 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ────────────────────── Letterboxd callout ────────────────────── */}
+        {/* ────────────────────── Import/export callout ────────────────────── */}
         <section className="relative px-6 py-20 lg:px-10">
           <Reveal className="mx-auto max-w-3xl">
             <div className="rounded-2xl border border-[var(--color-border)]/80 bg-[var(--color-surface)]/40 p-8 md:p-10">
-              <SectionEyebrow prefix="Also" title="Letterboxd import" />
+              <SectionEyebrow prefix="Also" title="Import + export" />
               <h3 className="mt-4 font-display text-[clamp(1.25rem,2.2vw,1.75rem)] leading-[1.15]">
-                Bring your history over in one&nbsp;go.
+                Bring your history in. Take your data&nbsp;out.
               </h3>
               <p className="mt-3 max-w-xl leading-[1.7] text-[var(--color-text-muted)]">
                 Drop in the export zip from{" "}
@@ -292,7 +294,9 @@ export default function Home() {
                   letterboxd.com/settings/data
                 </a>
                 . Diary, reviews, and watchlist. Matched to TMDB. Duplicates
-                skipped.
+                skipped. When you want a copy back out, cinefill exports a zip
+                with JSON and CSV files for your diary, watchlist, and standout
+                episodes.
               </p>
             </div>
           </Reveal>

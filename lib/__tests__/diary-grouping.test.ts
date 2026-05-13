@@ -3,6 +3,7 @@ import type { DiaryEntry } from '@/db/diary';
 
 function entry(over: Partial<DiaryEntry> & Pick<DiaryEntry, 'id'>): DiaryEntry {
   return {
+    syncId: `diary:${over.id}`,
     tmdbId: 100 + over.id,
     mediaType: 'movie',
     seasonNumber: null,
@@ -14,6 +15,10 @@ function entry(over: Partial<DiaryEntry> & Pick<DiaryEntry, 'id'>): DiaryEntry {
     rating: 4,
     note: '',
     createdAt: Date.UTC(2024, 2, 15),
+    updatedAt: Date.UTC(2024, 2, 15),
+    deletedAt: null,
+    dirty: 0,
+    lastModifiedDeviceId: 'test',
     ...over,
   };
 }

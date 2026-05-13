@@ -16,6 +16,7 @@ import 'react-native-reanimated';
 
 import { ThemeProvider, tokens } from '@/theme';
 import { FilmContextProvider } from '@/lib/film-context';
+import { SyncProvider } from '@/lib/sync/context';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -50,55 +51,61 @@ export default function RootLayout() {
       <KeyboardProvider>
         <BottomSheetModalProvider>
           <FilmContextProvider>
-            <ThemeProvider>
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: tokens.colors.bg.app },
-                headerTitleStyle: {
-                  color: tokens.colors.text.primary,
-                  fontFamily: tokens.typography.titleMd.fontFamily,
-                  fontSize: tokens.typography.titleMd.fontSize,
-                  fontWeight: tokens.typography.titleMd.fontWeight,
-                },
-                headerTintColor: tokens.colors.accent.base,
-                contentStyle: { backgroundColor: tokens.colors.bg.app },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="new-entry"
-                options={{
-                  presentation: 'modal',
-                  title: 'Log a watch',
-                }}
-              />
-              <Stack.Screen
-                name="movie/[tmdbId]"
-                options={{ title: '', headerBackTitle: 'Back' }}
-              />
-              <Stack.Screen
-                name="tv/[id]"
-                options={{ title: '', headerBackTitle: 'Back' }}
-              />
-              <Stack.Screen
-                name="tv/[id]/season/[n]"
-                options={{ title: '', headerBackTitle: 'Back' }}
-              />
-              <Stack.Screen
-                name="person/[id]"
-                options={{ title: '', headerBackTitle: 'Back' }}
-              />
-              <Stack.Screen
-                name="edit-entry/[id]"
-                options={{ presentation: 'modal', title: 'Edit entry' }}
-              />
-              <Stack.Screen
-                name="import-letterboxd"
-                options={{ presentation: 'modal', title: 'Import from Letterboxd' }}
-              />
-            </Stack>
-            <StatusBar style="light" />
-          </ThemeProvider>
+            <SyncProvider>
+              <ThemeProvider>
+                <Stack
+                  screenOptions={{
+                    headerStyle: { backgroundColor: tokens.colors.bg.app },
+                    headerTitleStyle: {
+                      color: tokens.colors.text.primary,
+                      fontFamily: tokens.typography.titleMd.fontFamily,
+                      fontSize: tokens.typography.titleMd.fontSize,
+                      fontWeight: tokens.typography.titleMd.fontWeight,
+                    },
+                    headerTintColor: tokens.colors.accent.base,
+                    contentStyle: { backgroundColor: tokens.colors.bg.app },
+                  }}
+                >
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="new-entry"
+                    options={{
+                      presentation: 'modal',
+                      title: 'Log a watch',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="movie/[tmdbId]"
+                    options={{ title: '', headerBackTitle: 'Back' }}
+                  />
+                  <Stack.Screen
+                    name="tv/[id]"
+                    options={{ title: '', headerBackTitle: 'Back' }}
+                  />
+                  <Stack.Screen
+                    name="tv/[id]/season/[n]"
+                    options={{ title: '', headerBackTitle: 'Back' }}
+                  />
+                  <Stack.Screen
+                    name="person/[id]"
+                    options={{ title: '', headerBackTitle: 'Back' }}
+                  />
+                  <Stack.Screen
+                    name="edit-entry/[id]"
+                    options={{ presentation: 'modal', title: 'Edit entry' }}
+                  />
+                  <Stack.Screen
+                    name="import-letterboxd"
+                    options={{ presentation: 'modal', title: 'Import from Letterboxd' }}
+                  />
+                  <Stack.Screen
+                    name="sync-settings"
+                    options={{ presentation: 'modal', title: 'Sync' }}
+                  />
+                </Stack>
+                <StatusBar style="light" />
+              </ThemeProvider>
+            </SyncProvider>
           </FilmContextProvider>
         </BottomSheetModalProvider>
       </KeyboardProvider>
