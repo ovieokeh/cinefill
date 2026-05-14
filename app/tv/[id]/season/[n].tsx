@@ -30,6 +30,7 @@ import { getSeasonDetails, type SeasonDetails, type TvEpisode } from '@/lib/tmdb
 import {
   deleteEntry,
   getTvSeasonEntry,
+  setEntryPublic,
   type DiaryEntry,
 } from '@/db/diary';
 import {
@@ -39,6 +40,7 @@ import {
 } from '@/db/standouts';
 import { haptic } from '@/lib/haptics';
 import { useFilmContext } from '@/lib/film-context';
+import { useSync } from '@/lib/sync/context';
 
 // Season hero is a poster + show + season-name row (≈ 120pt tall); match the
 // person-detail threshold so the title flips on at roughly the same scroll
@@ -49,6 +51,7 @@ export default function SeasonDetailScreen() {
   const t = useTheme();
   const router = useRouter();
   const { refresh } = useFilmContext();
+  const { meta } = useSync();
   const { id, n, showTitle, showPosterPath, showYear } = useLocalSearchParams<{
     id: string;
     n: string;
@@ -73,6 +76,7 @@ export default function SeasonDetailScreen() {
   const [standoutKeys, setStandoutKeys] = useState<Set<number>>(new Set());
 
   const actionSheetRef = useRef<ActionSheetHandle>(null);
+  const showPublicControls = Boolean(meta?.enabled && meta.serverUrl.trim().length > 0);
 
   const { scrollHandler, showTitle: showNavTitle } = useScrollTitle(SEASON_HERO_THRESHOLD);
 
@@ -156,23 +160,48 @@ export default function SeasonDetailScreen() {
     );
   }, [entry, refresh]);
 
+  const setLogPublic = useCallback(
+    async (next: boolean) => {
+      if (!entry) return;
+      const previous = entry;
+      haptic.selection();
+      setEntry({ ...entry, isPublic: next });
+      try {
+        await setEntryPublic(entry.id, next);
+      } catch (e) {
+        setEntry(previous);
+        console.error('Failed to update log visibility', e);
+      }
+    },
+    [entry],
+  );
+
   const openActions = useCallback(() => {
     if (!entry) return;
-    const actions: ActionItem[] = [
-      {
-        label: 'Edit log',
-        icon: 'pencil',
-        onPress: () => router.push(`/edit-entry/${entry.id}`),
-      },
-      {
-        label: 'Delete log',
-        icon: 'trash-outline',
-        destructive: true,
-        onPress: confirmDelete,
-      },
-    ];
+    const actions: ActionItem[] = [];
+    actions.push({
+      label: 'Edit log',
+      icon: 'pencil',
+      onPress: () => router.push(`/edit-entry/${entry.id}`),
+    });
+    if (showPublicControls) {
+      actions.push({
+        label: 'Make log public',
+        icon: 'globe-outline',
+        switch: {
+          value: entry.isPublic,
+          onValueChange: setLogPublic,
+        },
+      });
+    }
+    actions.push({
+      label: 'Delete log',
+      icon: 'trash-outline',
+      destructive: true,
+      onPress: confirmDelete,
+    });
     actionSheetRef.current?.present(actions);
-  }, [entry, router, confirmDelete]);
+  }, [entry, router, confirmDelete, showPublicControls, setLogPublic]);
 
   const toggleStandout = useCallback(
     async (episode: TvEpisode) => {

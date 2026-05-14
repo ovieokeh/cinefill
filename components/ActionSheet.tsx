@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
@@ -20,9 +20,13 @@ import { Text } from './Text';
 
 export type ActionItem = {
   label: string;
-  onPress: () => void;
+  onPress?: () => void;
   destructive?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
+  switch?: {
+    value: boolean;
+    onValueChange: (value: boolean) => void;
+  };
 };
 
 export type ActionSheetHandle = {
@@ -73,7 +77,13 @@ export const ActionSheet = forwardRef<ActionSheetHandle>(function ActionSheet(_,
             key={`${item.label}-${idx}`}
             onPress={() => {
               modalRef.current?.dismiss();
-              requestAnimationFrame(item.onPress);
+              if (item.switch) {
+                requestAnimationFrame(() =>
+                  item.switch?.onValueChange(!item.switch.value),
+                );
+                return;
+              }
+              if (item.onPress) requestAnimationFrame(item.onPress);
             }}
             style={({ pressed }) => [
               styles.row,
@@ -92,9 +102,27 @@ export const ActionSheet = forwardRef<ActionSheetHandle>(function ActionSheet(_,
                 style={{ marginRight: t.spacing.md }}
               />
             ) : null}
-            <Text variant="body" tone={item.destructive ? 'danger' : 'primary'}>
-              {item.label}
-            </Text>
+            <View style={styles.label}>
+              <Text variant="body" tone={item.destructive ? 'danger' : 'primary'}>
+                {item.label}
+              </Text>
+            </View>
+            {item.switch ? (
+              <View onTouchStart={(event) => event.stopPropagation()}>
+                <Switch
+                  value={item.switch.value}
+                  onValueChange={(value) => {
+                    modalRef.current?.dismiss();
+                    requestAnimationFrame(() => item.switch?.onValueChange(value));
+                  }}
+                  trackColor={{
+                    false: t.colors.border.strong,
+                    true: t.colors.accent.base,
+                  }}
+                  thumbColor={t.colors.text.primary}
+                />
+              </View>
+            ) : null}
           </Pressable>
         ))}
       </BottomSheetView>
@@ -104,4 +132,5 @@ export const ActionSheet = forwardRef<ActionSheetHandle>(function ActionSheet(_,
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  label: { flex: 1, minWidth: 0 },
 });

@@ -63,13 +63,11 @@ export async function getDeviceId(): Promise<string> {
 
 export async function getSyncMeta(): Promise<SyncMeta> {
   const deviceId = await getDeviceId();
-  const [serverUrl, enabled, lastCursor, lastSuccessAt, lastError] = await Promise.all([
-    getValue('server_url'),
-    getValue('enabled'),
-    getValue('last_cursor'),
-    getValue('last_success_at'),
-    getValue('last_error'),
-  ]);
+  const serverUrl = await getValue('server_url');
+  const enabled = await getValue('enabled');
+  const lastCursor = await getValue('last_cursor');
+  const lastSuccessAt = await getValue('last_success_at');
+  const lastError = await getValue('last_error');
   return {
     ...DEFAULT_META,
     deviceId,
@@ -85,10 +83,8 @@ export async function saveSyncConfig(input: {
   enabled: boolean;
   serverUrl: string;
 }): Promise<void> {
-  await Promise.all([
-    setValue('enabled', input.enabled ? '1' : '0'),
-    setValue('server_url', input.serverUrl.trim()),
-  ]);
+  await setValue('enabled', input.enabled ? '1' : '0');
+  await setValue('server_url', input.serverUrl.trim());
 }
 
 export async function setSyncCursor(cursor: string | null): Promise<void> {
@@ -96,11 +92,9 @@ export async function setSyncCursor(cursor: string | null): Promise<void> {
 }
 
 export async function setSyncSuccess(cursor: string): Promise<void> {
-  await Promise.all([
-    setValue('last_cursor', cursor),
-    setValue('last_success_at', String(Date.now())),
-    setValue('last_error', null),
-  ]);
+  await setValue('last_cursor', cursor);
+  await setValue('last_success_at', String(Date.now()));
+  await setValue('last_error', null);
 }
 
 export async function setSyncError(message: string): Promise<void> {

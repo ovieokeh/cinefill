@@ -36,15 +36,19 @@ import { useTheme } from '@/theme';
 import {
   getEntryByTmdbId,
   deleteEntry,
+  setEntryPublic,
   type DiaryEntry,
 } from '@/db/diary';
 import {
   addToWatchlist,
+  getWatchlistItem,
   removeFromWatchlist,
-  isInWatchlist,
+  setWatchlistItemPublic,
+  type WatchlistItem,
 } from '@/db/watchlist';
 import { getMovieDetails, type MovieDetails } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
+import { useSync } from '@/lib/sync/context';
 
 const SKELETON_BLOCK_HEIGHT = 96;
 const FAB_SIZE = 56;
@@ -54,6 +58,7 @@ export default function MovieScreen() {
   const t = useTheme();
   const router = useRouter();
   const { refresh } = useFilmContext();
+  const { meta } = useSync();
   const { tmdbId: rawTmdbId, title, year, posterPath } = useLocalSearchParams<{
     tmdbId: string;
     title?: string;
@@ -68,7 +73,7 @@ export default function MovieScreen() {
   const seedPosterPath = posterPath && posterPath.length > 0 ? posterPath : null;
 
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
-  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistItem, setWatchlistItem] = useState<WatchlistItem | null>(null);
   const [details, setDetails] = useState<MovieDetails | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
@@ -83,11 +88,11 @@ export default function MovieScreen() {
       (async () => {
         const [row, watch] = await Promise.all([
           getEntryByTmdbId(tmdbId),
-          isInWatchlist(tmdbId, 'movie'),
+          getWatchlistItem(tmdbId, 'movie'),
         ]);
         if (cancelled) return;
         setEntry(row);
-        setInWatchlist(watch);
+        setWatchlistItem(watch);
       })();
       return () => {
         cancelled = true;
@@ -136,6 +141,8 @@ export default function MovieScreen() {
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';
 
   const actionSheetRef = useRef<ActionSheetHandle>(null);
+  const inWatchlist = watchlistItem != null;
+  const showPublicControls = Boolean(meta?.enabled && meta.serverUrl.trim().length > 0);
 
   const doDelete = useCallback(async () => {
     if (!entry) return;
@@ -166,22 +173,54 @@ export default function MovieScreen() {
     try {
       if (inWatchlist) {
         await removeFromWatchlist(tmdbId, 'movie');
-        setInWatchlist(false);
+        setWatchlistItem(null);
       } else {
-        await addToWatchlist({
+        const saved = await addToWatchlist({
           tmdbId,
           mediaType: 'movie',
           title: heroTitle,
           year: heroYear,
           posterPath: heroPosterPath,
         });
-        setInWatchlist(true);
+        setWatchlistItem(saved);
       }
       await refresh();
     } catch (e) {
       console.error('Failed to toggle watchlist', e);
     }
   }, [tmdbId, validTmdbId, inWatchlist, heroTitle, heroYear, heroPosterPath, refresh]);
+
+  const setWatchlistPublic = useCallback(
+    async (next: boolean) => {
+      if (!validTmdbId || !watchlistItem) return;
+      const previous = watchlistItem;
+      haptic.selection();
+      setWatchlistItem({ ...watchlistItem, isPublic: next });
+      try {
+        await setWatchlistItemPublic(tmdbId, 'movie', next);
+      } catch (e) {
+        setWatchlistItem(previous);
+        console.error('Failed to update watchlist visibility', e);
+      }
+    },
+    [tmdbId, validTmdbId, watchlistItem],
+  );
+
+  const setLogPublic = useCallback(
+    async (next: boolean) => {
+      if (!entry) return;
+      const previous = entry;
+      haptic.selection();
+      setEntry({ ...entry, isPublic: next });
+      try {
+        await setEntryPublic(entry.id, next);
+      } catch (e) {
+        setEntry(previous);
+        console.error('Failed to update log visibility', e);
+      }
+    },
+    [entry],
+  );
 
   const openActions = useCallback(() => {
     if (!validTmdbId || !heroTitle) return;
@@ -193,6 +232,16 @@ export default function MovieScreen() {
         icon: 'pencil',
         onPress: () => router.push(`/edit-entry/${entry.id}`),
       });
+      if (showPublicControls) {
+        actions.push({
+          label: 'Make log public',
+          icon: 'globe-outline',
+          switch: {
+            value: entry.isPublic,
+            onValueChange: setLogPublic,
+          },
+        });
+      }
       actions.push({
         label: 'Delete log',
         icon: 'trash-outline',
@@ -220,18 +269,32 @@ export default function MovieScreen() {
       icon: inWatchlist ? 'bookmark' : 'bookmark-outline',
       onPress: toggleWatchlist,
     });
+    if (inWatchlist && watchlistItem && showPublicControls) {
+      actions.push({
+        label: 'Make watchlist public',
+        icon: 'globe-outline',
+        switch: {
+          value: watchlistItem.isPublic,
+          onValueChange: setWatchlistPublic,
+        },
+      });
+    }
     actionSheetRef.current?.present(actions);
   }, [
     validTmdbId,
     heroTitle,
     entry,
     inWatchlist,
+    watchlistItem,
+    showPublicControls,
     router,
     tmdbId,
     heroYear,
     heroPosterPath,
     confirmDelete,
     toggleWatchlist,
+    setWatchlistPublic,
+    setLogPublic,
   ]);
 
   if (!validTmdbId) {
@@ -303,7 +366,7 @@ export default function MovieScreen() {
             <BackdropPosterHeaderSkeleton />
           )}
 
-          {entry ? <YourLogBlock entry={entry} number={num()} /> : null}
+          {entry ? <YourLogBlock entry={entry} number={num()} onActions={openActions} /> : null}
 
           {loadingDetails && !details ? (
             <SkeletonBlocks />

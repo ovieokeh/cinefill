@@ -6,7 +6,10 @@ let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 function openConnection(): Promise<SQLite.SQLiteDatabase> {
   return (async () => {
     const db = await SQLite.openDatabaseAsync('cinefill.db');
-    await db.execAsync('PRAGMA journal_mode = WAL;');
+    await db.execAsync(`
+      PRAGMA busy_timeout = 5000;
+      PRAGMA journal_mode = WAL;
+    `);
     return db;
   })();
 }
@@ -20,6 +23,16 @@ export function getConnection(): Promise<SQLite.SQLiteDatabase> {
 // unique key plus an idempotent init function (CREATE TABLE IF NOT EXISTS).
 // The init runs at most once per process.
 const schemaPromises = new Map<string, Promise<SQLite.SQLiteDatabase>>();
+let schemaQueue: Promise<void> = Promise.resolve();
+
+function enqueueSchema<T>(task: () => Promise<T>): Promise<T> {
+  const run = schemaQueue.then(task, task);
+  schemaQueue = run.then(
+    () => {},
+    () => {},
+  );
+  return run;
+}
 
 export function ensureSchema(
   key: string,
@@ -27,12 +40,15 @@ export function ensureSchema(
 ): Promise<SQLite.SQLiteDatabase> {
   const existing = schemaPromises.get(key);
   if (existing) return existing;
-  const p = (async () => {
+  const p = enqueueSchema(async () => {
     const db = await getConnection();
     await init(db);
     return db;
-  })();
+  });
   schemaPromises.set(key, p);
+  p.catch(() => {
+    if (schemaPromises.get(key) === p) schemaPromises.delete(key);
+  });
   return p;
 }
 

@@ -37,6 +37,12 @@ export function Nav() {
             Features
           </Link>
           <Link
+            href="/faq"
+            className="text-[0.8125rem] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+          >
+            FAQ
+          </Link>
+          <Link
             href="/#testflight"
             className="group relative inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-accent)] px-5 text-[0.8125rem] font-semibold text-[var(--color-accent-on)]"
           >

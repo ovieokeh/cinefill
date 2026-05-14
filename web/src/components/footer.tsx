@@ -22,6 +22,12 @@ export function Footer() {
             Support
           </Link>
           <Link
+            href="/faq"
+            className="transition-colors hover:text-[var(--color-text)]"
+          >
+            FAQ
+          </Link>
+          <Link
             href="/privacy"
             className="transition-colors hover:text-[var(--color-text)]"
           >

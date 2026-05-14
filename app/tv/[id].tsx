@@ -35,13 +35,20 @@ import { useFilmContext } from '@/lib/film-context';
 import { useTheme } from '@/theme';
 import { getTvDetails, type TvDetails, type TvSeasonSummary } from '@/lib/tmdb';
 import { upsertMediaCache } from '@/db/media_cache';
-import { addToWatchlist, isInWatchlist, removeFromWatchlist } from '@/db/watchlist';
+import {
+  addToWatchlist,
+  getWatchlistItem,
+  removeFromWatchlist,
+  setWatchlistItemPublic,
+  type WatchlistItem,
+} from '@/db/watchlist';
 import {
   getShowSeasonStats,
   listShowSeasonEntries,
   type DiaryEntry,
 } from '@/db/diary';
 import { listStandoutsForShow, type EpisodeStandout } from '@/db/standouts';
+import { useSync } from '@/lib/sync/context';
 
 const SKELETON_BLOCK_HEIGHT = 96;
 const FAB_SIZE = 56;
@@ -51,6 +58,7 @@ export default function TvScreen() {
   const t = useTheme();
   const router = useRouter();
   const { refresh } = useFilmContext();
+  const { meta } = useSync();
   const { id, title, year, posterPath } = useLocalSearchParams<{
     id: string;
     title?: string;
@@ -64,7 +72,7 @@ export default function TvScreen() {
   const seedYear = year ?? null;
   const seedPosterPath = posterPath && posterPath.length > 0 ? posterPath : null;
 
-  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistItem, setWatchlistItem] = useState<WatchlistItem | null>(null);
   const [details, setDetails] = useState<TvDetails | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
@@ -84,13 +92,13 @@ export default function TvScreen() {
       if (!validId) return;
       (async () => {
         const [watch, entries, stats, marks] = await Promise.all([
-          isInWatchlist(tvId, 'tv'),
+          getWatchlistItem(tvId, 'tv'),
           listShowSeasonEntries(tvId),
           getShowSeasonStats(tvId),
           listStandoutsForShow(tvId),
         ]);
         if (cancelled) return;
-        setInWatchlist(watch);
+        setWatchlistItem(watch);
         setSeasonEntries(entries);
         setSeasonStats(stats);
         setStandouts(marks);
@@ -144,6 +152,8 @@ export default function TvScreen() {
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';
 
   const actionSheetRef = useRef<ActionSheetHandle>(null);
+  const inWatchlist = watchlistItem != null;
+  const showPublicControls = Boolean(meta?.enabled && meta.serverUrl.trim().length > 0);
 
   const toggleWatchlist = useCallback(async () => {
     if (!validId || !heroTitle) return;
@@ -151,22 +161,38 @@ export default function TvScreen() {
     try {
       if (inWatchlist) {
         await removeFromWatchlist(tvId, 'tv');
-        setInWatchlist(false);
+        setWatchlistItem(null);
       } else {
-        await addToWatchlist({
+        const saved = await addToWatchlist({
           tmdbId: tvId,
           mediaType: 'tv',
           title: heroTitle,
           year: heroYear,
           posterPath: heroPosterPath,
         });
-        setInWatchlist(true);
+        setWatchlistItem(saved);
       }
       await refresh();
     } catch (e) {
       console.error('Failed to toggle watchlist', e);
     }
   }, [tvId, validId, inWatchlist, heroTitle, heroYear, heroPosterPath, refresh]);
+
+  const setWatchlistPublic = useCallback(
+    async (next: boolean) => {
+      if (!validId || !watchlistItem) return;
+      const previous = watchlistItem;
+      haptic.selection();
+      setWatchlistItem({ ...watchlistItem, isPublic: next });
+      try {
+        await setWatchlistItemPublic(tvId, 'tv', next);
+      } catch (e) {
+        setWatchlistItem(previous);
+        console.error('Failed to update watchlist visibility', e);
+      }
+    },
+    [tvId, validId, watchlistItem],
+  );
 
   const openActions = useCallback(() => {
     if (!validId || !heroTitle) return;
@@ -202,6 +228,16 @@ export default function TvScreen() {
       icon: inWatchlist ? 'bookmark' : 'bookmark-outline',
       onPress: toggleWatchlist,
     });
+    if (inWatchlist && watchlistItem && showPublicControls) {
+      actions.push({
+        label: 'Make watchlist public',
+        icon: 'globe-outline',
+        switch: {
+          value: watchlistItem.isPublic,
+          onValueChange: setWatchlistPublic,
+        },
+      });
+    }
     actionSheetRef.current?.present(actions);
   }, [
     validId,
@@ -211,9 +247,12 @@ export default function TvScreen() {
     details,
     seasonEntries,
     inWatchlist,
+    watchlistItem,
+    showPublicControls,
     router,
     tvId,
     toggleWatchlist,
+    setWatchlistPublic,
   ]);
 
   if (!validId) {

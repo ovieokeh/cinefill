@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 
 import { Button, Input, Screen, Text } from '@/components';
@@ -8,6 +8,8 @@ import { checkSyncHealth } from '@/lib/sync/client';
 import { getSyncSettings, saveSyncSettings } from '@/lib/sync/settings';
 import { normalizeSyncServerUrl } from '@/lib/sync/url';
 import { useTheme } from '@/theme';
+
+const SYNC_FAQ_URL = 'https://cinefill.ovie.dev/faq';
 
 function formatTime(value: number | null): string {
   if (!value) return 'Never';
@@ -84,6 +86,14 @@ export default function SyncSettingsScreen() {
     }
   }
 
+  async function openSyncFaq(): Promise<void> {
+    try {
+      await Linking.openURL(SYNC_FAQ_URL);
+    } catch {
+      Alert.alert('Could not open FAQ', SYNC_FAQ_URL);
+    }
+  }
+
   return (
     <Screen padded={false}>
       <Stack.Screen
@@ -117,9 +127,21 @@ export default function SyncSettingsScreen() {
           </Text>
           <Text variant="caption" tone="muted">
             Optional sync mirrors your diary, watchlist, standout episodes, and
-            deletions to the server you choose. TMDB cache stays local, and
-            diary/watchlist items stay private unless marked public.
+            deletions to the server you choose. Diary/watchlist items stay private unless marked public.
           </Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={openSyncFaq}
+            style={({ pressed }) => ({
+              alignSelf: 'flex-start',
+              marginTop: t.spacing.xs,
+              opacity: pressed ? t.opacity.pressed : 1,
+            })}
+          >
+            <Text variant="caption" tone="accent">
+              Sync FAQ
+            </Text>
+          </Pressable>
         </View>
 
         <View

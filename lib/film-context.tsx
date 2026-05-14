@@ -31,7 +31,8 @@ const FilmContext = createContext<FilmContextValue>({
 });
 
 async function loadFlags(): Promise<FilmFlags> {
-  const [entries, watchlist] = await Promise.all([listEntries(), listWatchlist()]);
+  const entries = await listEntries();
+  const watchlist = await listWatchlist();
   const flags: FilmFlags = {
     watched: { movie: new Set(), tv: new Set() },
     watchlist: { movie: new Set(), tv: new Set() },

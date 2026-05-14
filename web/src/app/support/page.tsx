@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { SectionEyebrow } from "@/components/section-eyebrow";
@@ -94,6 +95,16 @@ export default function SupportPage() {
                   visibility flag, and only items you mark public should appear
                   on a public site. Cached TMDB metadata stays local. The
                   privacy page has the full list.
+                </p>
+                <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
+                  The{" "}
+                  <Link
+                    href="/faq"
+                    className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+                  >
+                    FAQ
+                  </Link>{" "}
+                  explains setup, tokens, and public visibility controls.
                 </p>
               </div>
 

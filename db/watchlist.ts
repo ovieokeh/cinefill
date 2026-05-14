@@ -286,6 +286,19 @@ export async function countWatchlist(): Promise<number> {
   return row?.c ?? 0;
 }
 
+export async function getWatchlistItem(
+  tmdbId: number,
+  mediaType: WatchlistMediaType,
+): Promise<WatchlistItem | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<Row>(
+    `SELECT ${SELECT_COLS} FROM watchlist WHERE tmdb_id = ? AND media_type = ? AND deleted_at IS NULL`,
+    tmdbId,
+    mediaType,
+  );
+  return row ? rowToItem(row) : null;
+}
+
 export async function listWatchlist(): Promise<WatchlistItem[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(

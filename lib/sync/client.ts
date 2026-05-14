@@ -51,11 +51,9 @@ export async function runSync(): Promise<SyncRunResult> {
     return { status: 'skipped', reason: 'missing-config' };
   }
 
-  const [diaryEntries, watchlistItems, episodeStandouts] = await Promise.all([
-    listDirtyDiaryEntryRecords(),
-    listDirtyWatchlistRecords(),
-    listDirtyEpisodeStandoutRecords(),
-  ]);
+  const diaryEntries = await listDirtyDiaryEntryRecords();
+  const watchlistItems = await listDirtyWatchlistRecords();
+  const episodeStandouts = await listDirtyEpisodeStandoutRecords();
   const request: SyncRequest = {
     schemaVersion: SYNC_SCHEMA_VERSION,
     deviceId: settings.deviceId,
@@ -99,7 +97,7 @@ export async function runSync(): Promise<SyncRunResult> {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Sync failed.';
-    await setSyncError(message);
+    await setSyncError(message).catch(() => {});
     throw error;
   }
 }

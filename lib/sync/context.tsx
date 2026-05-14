@@ -58,7 +58,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         return result;
       } catch (error) {
         console.warn('sync failed', error);
-        await reload();
+        await reload().catch(() => {});
         setPhase('error');
         return null;
       } finally {
