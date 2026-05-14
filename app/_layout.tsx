@@ -102,6 +102,10 @@ export default function RootLayout() {
                     name="sync-settings"
                     options={{ presentation: 'modal', title: 'Sync' }}
                   />
+                  <Stack.Screen
+                    name="credits"
+                    options={{ presentation: 'modal', title: 'Credits' }}
+                  />
                 </Stack>
                 <StatusBar style="light" />
               </ThemeProvider>

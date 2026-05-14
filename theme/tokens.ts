@@ -22,6 +22,11 @@ export const colors = {
     pressed: '#C99C42',
     on: '#0F1216',
   },
+  tmdb: {
+    green: '#90cea1',
+    blue: '#3cbec9',
+    cyan: '#00b3e5',
+  },
   star: '#FFB400',
   danger: '#E0654D',
   rating: {

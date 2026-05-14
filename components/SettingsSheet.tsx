@@ -64,6 +64,11 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
     requestAnimationFrame(() => router.push('/sync-settings' as never));
   };
 
+  const handleCredits = () => {
+    modalRef.current?.dismiss();
+    requestAnimationFrame(() => router.push('/credits' as never));
+  };
+
   const handleExport = async () => {
     if (exporting) return;
     setExporting(true);
@@ -234,6 +239,38 @@ export const SettingsSheet = forwardRef<SettingsSheetHandle>(function SettingsSh
             <Text variant="body">Sync</Text>
             <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
               Optional autosync to a compatible server you choose.
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={t.spacing.lg}
+            color={t.colors.text.muted}
+          />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Credits"
+          onPress={handleCredits}
+          style={({ pressed }) => [
+            styles.row,
+            {
+              paddingHorizontal: t.spacing.lg,
+              paddingVertical: t.spacing.md,
+              gap: t.spacing.md,
+              backgroundColor: pressed ? t.colors.bg.surface : t.colors.transparent,
+            },
+          ]}
+        >
+          <Ionicons
+            name="information-circle-outline"
+            size={t.spacing.xl}
+            color={t.colors.text.primary}
+          />
+          <View style={styles.flex1}>
+            <Text variant="body">Credits</Text>
+            <Text variant="caption" tone="muted" style={{ marginTop: t.spacing.xxs }}>
+              TMDB attribution and data source notes.
             </Text>
           </View>
           <Ionicons

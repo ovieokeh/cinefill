@@ -118,7 +118,9 @@ export default function PrivacyPage() {
                 page, cinefill sends a query to TMDB&rsquo;s API to fetch
                 metadata. cinefill doesn&rsquo;t add user identifiers to those
                 requests. TMDB sees only the query text and the IP
-                address of the request. TMDB&rsquo;s privacy policy is at{" "}
+                address of the request. cinefill uses TMDB and the TMDB APIs
+                but is not endorsed, certified, or otherwise approved by TMDB.
+                TMDB&rsquo;s privacy policy is at{" "}
                 <a
                   href="https://www.themoviedb.org/privacy-policy"
                   target="_blank"
