@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, View, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,7 @@ import {
   type ListFilters,
   type ListMediaType,
 } from '@/lib/list-filters';
+import { useFilmContext } from '@/lib/film-context';
 
 type GenreMap = Map<number, string>;
 
@@ -58,6 +59,7 @@ const SORT_COMPARATORS: Record<
 export default function WatchlistScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { version: dataVersion } = useFilmContext();
   const [items, setItems] = useState<WatchlistItem[] | null>(null);
   const [cache, setCache] = useState<MediaCacheRow[]>([]);
   const [genreMaps, setGenreMaps] = useState<{ movie: GenreMap; tv: GenreMap } | null>(
@@ -66,18 +68,41 @@ export default function WatchlistScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<ListFilters>(EMPTY_FILTERS);
   const [sortKey, setSortKey] = useState<WatchlistSortKey>('recently-added');
+  const inflightLoadRef = useRef<Promise<void> | null>(null);
+  const pendingLoadRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [list, cs] = await Promise.all([listWatchlist(), listAllCache()]);
-    setItems(list);
-    setCache(cs);
+    if (inflightLoadRef.current) {
+      pendingLoadRef.current = true;
+      return inflightLoadRef.current;
+    }
+    const run = (async () => {
+      do {
+        pendingLoadRef.current = false;
+        try {
+          const list = await listWatchlist();
+          const cs = await listAllCache();
+          setItems(list);
+          setCache(cs);
+        } catch (error) {
+          console.warn('watchlist load failed', error);
+        }
+      } while (pendingLoadRef.current);
+      inflightLoadRef.current = null;
+    })();
+    inflightLoadRef.current = run;
+    return run;
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      load().catch(() => {});
     }, [load]),
   );
+
+  useEffect(() => {
+    if (dataVersion > 0) load().catch(() => {});
+  }, [dataVersion, load]);
 
   // One-shot genre catalogue load — genre IDs change rarely enough to keep in memory.
   useEffect(() => {

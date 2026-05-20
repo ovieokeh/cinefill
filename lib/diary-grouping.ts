@@ -58,7 +58,7 @@ export function ratingLabel(rating: number): string {
 /**
  * Walks a pre-sorted list and starts a new section whenever the key changes.
  * Callers must sort the input first; relying on sequential same-key runs lets
- * us group by derived keys (decade, rating tier) without re-sorting.
+ * us group by derived keys (release year, rating tier) without re-sorting.
  */
 function groupSequential(
   entries: DiaryEntry[],
@@ -78,11 +78,11 @@ function groupSequential(
   return sections;
 }
 
-function decadeFor(year: string | null): number | null {
+function releaseYearFor(year: string | null): number | null {
   if (!year) return null;
   const y = Number(year);
   if (!Number.isFinite(y)) return null;
-  return Math.floor(y / 10) * 10;
+  return y;
 }
 
 export function groupDiaryEntries(
@@ -104,12 +104,12 @@ export function groupDiaryEntries(
       return groupSequential(
         entries,
         (e) => {
-          const d = decadeFor(e.year);
-          return d != null ? String(d) : 'unknown';
+          const year = releaseYearFor(e.year);
+          return year != null ? String(year) : 'unknown';
         },
         (e) => {
-          const d = decadeFor(e.year);
-          return d != null ? `${d}s` : 'No year';
+          const year = releaseYearFor(e.year);
+          return year != null ? String(year) : 'No year';
         },
       );
   }

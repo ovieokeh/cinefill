@@ -57,6 +57,7 @@ import {
   type StatsCacheRow,
 } from '@/lib/stats';
 import { tasteProfile } from '@/lib/taste';
+import { useFilmContext } from '@/lib/film-context';
 
 const BAR_TRACK_HEIGHT = 8;
 const BAR_TRACK_HEIGHT_LG = 10;
@@ -76,27 +77,48 @@ export default function YouScreen() {
   const now = useMemo(() => new Date(), []);
   const settingsRef = useRef<SettingsSheetHandle>(null);
   const openSettings = useCallback(() => settingsRef.current?.present(), []);
+  const { version: dataVersion } = useFilmContext();
 
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [cache, setCache] = useState<MediaCacheRow[]>([]);
   const [genreMaps, setGenreMaps] = useState<{ movie: GenreMap; tv: GenreMap } | null>(null);
   const [backfillRemaining, setBackfillRemaining] = useState(0);
+  const inflightLoadRef = useRef<Promise<void> | null>(null);
+  const pendingLoadRef = useRef(false);
+
+  const load = useCallback(async () => {
+    if (inflightLoadRef.current) {
+      pendingLoadRef.current = true;
+      return inflightLoadRef.current;
+    }
+    const run = (async () => {
+      do {
+        pendingLoadRef.current = false;
+        try {
+          const es = await listEntries();
+          const cs = await listAllCache();
+          setEntries(es);
+          setCache(cs);
+        } catch (error) {
+          console.warn('you load failed', error);
+        }
+      } while (pendingLoadRef.current);
+      inflightLoadRef.current = null;
+    })();
+    inflightLoadRef.current = run;
+    return run;
+  }, []);
 
   // ----- initial load on focus -----
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        const [es, cs] = await Promise.all([listEntries(), listAllCache()]);
-        if (cancelled) return;
-        setEntries(es);
-        setCache(cs);
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, []),
+      load().catch(() => {});
+    }, [load]),
   );
+
+  useEffect(() => {
+    if (dataVersion > 0) load().catch(() => {});
+  }, [dataVersion, load]);
 
   // ----- one-time genre map load -----
   useEffect(() => {

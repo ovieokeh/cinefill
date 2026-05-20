@@ -1,5 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
-import { FlatList, View, StyleSheet, Pressable, RefreshControl } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  View,
+  StyleSheet,
+  Pressable,
+  RefreshControl,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,6 +19,9 @@ import {
   GenreChip,
   DecadeChip,
   SortChip,
+  Skeleton,
+  SkeletonPoster,
+  SkeletonText,
   type MediaTypeOption,
   type SortOption,
 } from '@/components';
@@ -33,6 +42,7 @@ import {
   type DiarySection,
   type DiarySortKey,
 } from '@/lib/diary-grouping';
+import { useFilmContext } from '@/lib/film-context';
 
 const MEDIA_OPTIONS: MediaTypeOption<ListMediaType>[] = [
   { value: 'all', label: 'All' },
@@ -47,14 +57,24 @@ const SORT_OPTIONS: SortOption<DiarySortKey>[] = [
   { key: 'release-year', label: 'Release year' },
 ];
 
+function releaseYearValue(year: string | null): number {
+  const value = Number(year);
+  return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY;
+}
+
 const SORT_COMPARATORS: Record<DiarySortKey, (a: DiaryEntry, b: DiaryEntry) => number> = {
   'recently-watched': (a, b) =>
     b.watchedDate.localeCompare(a.watchedDate) || b.createdAt - a.createdAt,
   'highest-rated': (a, b) =>
     b.rating - a.rating || b.watchedDate.localeCompare(a.watchedDate),
   'recently-logged': (a, b) => b.createdAt - a.createdAt,
-  'release-year': (a, b) => Number(b.year ?? 0) - Number(a.year ?? 0),
+  'release-year': (a, b) =>
+    releaseYearValue(b.year) - releaseYearValue(a.year) ||
+    b.watchedDate.localeCompare(a.watchedDate) ||
+    b.createdAt - a.createdAt,
 };
+
+const SKELETON_DAY_SIZE = 64;
 
 type Row =
   | { type: 'header'; key: string; label: string }
@@ -72,23 +92,63 @@ function toRows(sections: DiarySection[]): Row[] {
 export default function DiaryScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { version: dataVersion } = useFilmContext();
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
   const [cache, setCache] = useState<MediaCacheRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [showLoadError, setShowLoadError] = useState(false);
   const [filters, setFilters] = useState<ListFilters>(EMPTY_FILTERS);
   const [sortKey, setSortKey] = useState<DiarySortKey>('recently-watched');
+  const inflightLoadRef = useRef<Promise<void> | null>(null);
+  const pendingLoadRef = useRef(false);
 
   const load = useCallback(async () => {
-    const [rows, cs] = await Promise.all([listEntries(), listAllCache()]);
-    setEntries(rows);
-    setCache(cs);
+    if (inflightLoadRef.current) {
+      pendingLoadRef.current = true;
+      return inflightLoadRef.current;
+    }
+    const run = (async () => {
+      do {
+        pendingLoadRef.current = false;
+        try {
+          const rows = await listEntries();
+          const cs = await listAllCache();
+          setEntries(rows);
+          setCache(cs);
+          setLoadError(null);
+          setShowLoadError(false);
+        } catch (error) {
+          console.warn('diary load failed', error);
+          setLoadError('Could not load your diary.');
+        }
+      } while (pendingLoadRef.current);
+      inflightLoadRef.current = null;
+    })();
+    inflightLoadRef.current = run;
+    return run;
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      load().catch(() => {});
     }, [load]),
   );
+
+  useEffect(() => {
+    if (dataVersion > 0) load().catch(() => {});
+  }, [dataVersion, load]);
+
+  useEffect(() => {
+    if (!loadError || entries !== null) {
+      setShowLoadError(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowLoadError(true);
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [entries, loadError]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -228,7 +288,49 @@ export default function DiaryScreen() {
           />
         }
         ListEmptyComponent={
-          entries == null ? null : filteredOut ? (
+          showLoadError && loadError ? (
+            <View
+              style={[
+                styles.empty,
+                { marginTop: t.spacing.xxxl, paddingHorizontal: t.spacing.xl },
+              ]}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={t.spacing.xxxl}
+                color={t.colors.text.muted}
+              />
+              <Text variant="titleLg" style={{ marginTop: t.spacing.md }}>
+                Diary unavailable
+              </Text>
+              <Text
+                variant="body"
+                tone="muted"
+                style={{ marginTop: t.spacing.xs, textAlign: 'center' }}
+              >
+                {loadError} Try again in a moment.
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setShowLoadError(false);
+                  load().catch(() => {});
+                }}
+                style={({ pressed }) => ({
+                  marginTop: t.spacing.md,
+                  paddingHorizontal: t.spacing.lg,
+                  paddingVertical: t.spacing.sm,
+                  borderRadius: t.radii.md,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: t.colors.border.strong,
+                  opacity: pressed ? t.opacity.pressed : 1,
+                })}
+              >
+                <Text variant="bodyStrong">Retry</Text>
+              </Pressable>
+            </View>
+          ) : entries == null ? (
+            <DiaryListSkeleton />
+          ) : filteredOut ? (
             <View
               style={[
                 styles.empty,
@@ -301,4 +403,50 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
   },
+  skeletonRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  skeletonContent: {
+    flex: 1,
+    minWidth: 0,
+  },
 });
+
+function DiaryListSkeleton({ count = 7 }: { count?: number }) {
+  const t = useTheme();
+  return (
+    <View style={{ paddingTop: t.spacing.md }}>
+      {Array.from({ length: count }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.skeletonRow,
+            {
+              paddingVertical: t.spacing.md,
+              paddingHorizontal: t.spacing.lg,
+              borderBottomColor: t.colors.border.subtle,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+            },
+          ]}
+        >
+          <Skeleton
+            width={SKELETON_DAY_SIZE}
+            height={SKELETON_DAY_SIZE}
+            borderRadius={t.radii.md}
+          />
+          <SkeletonPoster size="sm" style={{ marginLeft: t.spacing.md }} />
+          <View style={[styles.skeletonContent, { marginLeft: t.spacing.md }]}>
+            <SkeletonText variant="titleMd" width={index % 3 === 0 ? '56%' : '76%'} />
+            <View style={{ marginTop: t.spacing.xs }}>
+              <SkeletonText variant="caption" width={index % 2 === 0 ? '30%' : '44%'} />
+            </View>
+            <View style={{ marginTop: t.spacing.xs }}>
+              <SkeletonText variant="caption" width="34%" />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}

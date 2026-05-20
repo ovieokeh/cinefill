@@ -23,11 +23,13 @@ const EMPTY_FLAGS: FilmFlags = {
 
 type FilmContextValue = FilmFlags & {
   refresh: () => Promise<void>;
+  version: number;
 };
 
 const FilmContext = createContext<FilmContextValue>({
   ...EMPTY_FLAGS,
   refresh: async () => {},
+  version: 0,
 });
 
 async function loadFlags(): Promise<FilmFlags> {
@@ -50,6 +52,7 @@ async function loadFlags(): Promise<FilmFlags> {
 
 export function FilmContextProvider({ children }: { children: ReactNode }) {
   const [flags, setFlags] = useState<FilmFlags>(EMPTY_FLAGS);
+  const [version, setVersion] = useState(0);
   // Coalesce rapid refresh() calls (e.g. bulk-import committing).
   const inflightRef = useRef<Promise<void> | null>(null);
 
@@ -59,6 +62,7 @@ export function FilmContextProvider({ children }: { children: ReactNode }) {
       try {
         const next = await loadFlags();
         setFlags(next);
+        setVersion((v) => v + 1);
       } catch (err) {
         console.warn('film-context refresh failed', err);
       } finally {
@@ -74,8 +78,8 @@ export function FilmContextProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo<FilmContextValue>(
-    () => ({ ...flags, refresh }),
-    [flags, refresh],
+    () => ({ ...flags, refresh, version }),
+    [flags, refresh, version],
   );
 
   return <FilmContext.Provider value={value}>{children}</FilmContext.Provider>;

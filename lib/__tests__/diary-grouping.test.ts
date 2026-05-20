@@ -89,7 +89,7 @@ describe('groupDiaryEntries', () => {
     expect(sections[0]?.items.map((e) => e.id)).toEqual([1, 2]);
   });
 
-  test('release-year groups consecutive same-decade runs', () => {
+  test('release-year groups consecutive same-year runs', () => {
     const entries = [
       entry({ id: 1, year: '2024' }),
       entry({ id: 2, year: '2020' }),
@@ -98,9 +98,8 @@ describe('groupDiaryEntries', () => {
       entry({ id: 5, year: '2009' }),
     ];
     const sections = groupDiaryEntries('release-year', entries);
-    expect(sections.map((s) => s.label)).toEqual(['2020s', '2010s', '2000s']);
-    expect(sections[0]?.items.map((e) => e.id)).toEqual([1, 2]);
-    expect(sections[1]?.items.map((e) => e.id)).toEqual([3, 4]);
+    expect(sections.map((s) => s.label)).toEqual(['2024', '2020', '2019', '2010', '2009']);
+    expect(sections.map((s) => s.items.map((e) => e.id))).toEqual([[1], [2], [3], [4], [5]]);
   });
 
   test('release-year buckets unknown years into a No year section', () => {
@@ -110,7 +109,7 @@ describe('groupDiaryEntries', () => {
       entry({ id: 3, year: null }),
     ];
     const sections = groupDiaryEntries('release-year', entries);
-    expect(sections.map((s) => s.label)).toEqual(['2020s', 'No year']);
+    expect(sections.map((s) => s.label)).toEqual(['2024', 'No year']);
     expect(sections[1]?.items.map((e) => e.id)).toEqual([2, 3]);
   });
 
