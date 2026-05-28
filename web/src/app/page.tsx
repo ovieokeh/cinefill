@@ -27,7 +27,7 @@ const jsonLd = {
       "@type": "SoftwareApplication",
       name: "cinefill",
       description:
-        "Track films and TV without an audience. Local-first diary, watchlist, TMDB-backed search, and optional personal sync.",
+        "Track films and TV without an audience. Local-first diary, watchlist, online catalog search, and optional personal sync.",
       applicationCategory: "EntertainmentApplication",
       operatingSystem: "iOS",
       url: "https://cinefill.ovie.dev",
@@ -35,8 +35,8 @@ const jsonLd = {
         "Film and TV-season diary with half-star ratings and optional notes",
         "Watchlist with genre, decade, and media-type filters",
         "Taste profile — moods, genre lean, era, loyalty",
-        "TMDB-backed discovery with watched / watchlist badges on every result",
-        "Letterboxd import from the standard export zip",
+        "Online catalog discovery with watched / watchlist badges on every result",
+        "Compatible diary import from a standard export zip",
         "Cinefill export zip with JSON and CSV files",
         "Local-first storage; no accounts, no analytics; optional personal sync",
       ],
@@ -146,13 +146,25 @@ export default function Home() {
               </ul>
             </Reveal>
 
-            <Reveal className="flex w-full min-w-0 justify-center md:flex-1" delay={180}>
-              <DeviceFrame className="w-full max-w-[18rem] md:max-w-[22rem]">
+            <Reveal
+              className="flex w-full min-w-0 justify-center gap-4 md:flex-1 lg:gap-6"
+              delay={180}
+            >
+              <DeviceFrame className="w-full max-w-[10rem] md:max-w-[13rem] lg:max-w-[15rem]">
                 <Image
-                  src="/promo/you-top-genre-top-directors.png"
+                  src="/promo/your-taste-iphone.png"
                   alt="The You tab — top genres donut and top directors"
                   width={1206}
                   height={2622}
+                  className="block w-full"
+                />
+              </DeviceFrame>
+              <DeviceFrame className="mt-10 w-full max-w-[10rem] md:max-w-[13rem] lg:max-w-[15rem]">
+                <Image
+                  src="/promo/you-iphone.png"
+                  alt="The You tab — taste profile summary"
+                  width={1290}
+                  height={2796}
                   className="block w-full"
                 />
               </DeviceFrame>
@@ -197,7 +209,7 @@ export default function Home() {
               <DevicePair
                 first={
                   <Image
-                    src="/promo/diary.png"
+                    src="/promo/diary-iphone.png"
                     alt="The Diary — filterable, sortable rows"
                     width={1206}
                     height={2622}
@@ -206,7 +218,7 @@ export default function Home() {
                 }
                 second={
                   <Image
-                    src="/promo/watchlist.png"
+                    src="/promo/watchlist-iphone.png"
                     alt="The Watchlist — genre + runtime on every row"
                     width={1206}
                     height={2622}
@@ -229,8 +241,8 @@ export default function Home() {
                 Search that knows what you&rsquo;ve&nbsp;watched.
               </h2>
               <p className="mt-5 max-w-lg leading-[1.75] text-[var(--color-text-muted)]">
-                TMDB-backed. Every result tells you if it&rsquo;s already in
-                your diary or watchlist.
+                Online catalog-backed. Every result tells you if it&rsquo;s
+                already in your diary or watchlist.
               </p>
               <ul className="mt-7 space-y-3">
                 {[
@@ -254,8 +266,8 @@ export default function Home() {
               <DevicePair
                 first={
                   <Image
-                    src="/promo/search.png"
-                    alt="Search results — films, shows, and people from TMDB"
+                    src="/promo/search-iphone.png"
+                    alt="Search results — films, shows, and people from the online catalog"
                     width={1206}
                     height={2622}
                     className="block w-full"
@@ -263,10 +275,10 @@ export default function Home() {
                 }
                 second={
                   <Image
-                    src="/promo/movie-detail.png"
+                    src="/promo/movie-detail-iphone.png"
                     alt="Film detail — Watched / Watchlist badges in context"
-                    width={1206}
-                    height={2622}
+                    width={1290}
+                    height={2796}
                     className="block w-full"
                   />
                 }
@@ -284,20 +296,17 @@ export default function Home() {
                 Bring your history in. Take your data&nbsp;out.
               </h3>
               <p className="mt-3 max-w-xl leading-[1.7] text-[var(--color-text-muted)]">
-                Drop in the export zip from{" "}
-                <a
-                  href="https://letterboxd.com/settings/data"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="text-[var(--color-accent)] underline-offset-4 hover:underline"
-                >
-                  letterboxd.com/settings/data
-                </a>
-                . Diary, reviews, and watchlist. Matched to TMDB. Duplicates
-                skipped. When you want a copy back out, cinefill exports a zip
-                with JSON and CSV files for your diary, watchlist, and standout
-                episodes.
+                Drop in a compatible export zip to bring over diary entries,
+                reviews, and watchlist items. Duplicates are skipped. When you
+                want a copy back out, cinefill exports a zip with JSON and CSV
+                files for your diary, watchlist, and standout episodes.
               </p>
+              <a
+                href="/faq"
+                className="mt-6 inline-flex text-sm font-semibold text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent-strong)]"
+              >
+                Read import and export answers
+              </a>
             </div>
           </Reveal>
         </section>
@@ -335,9 +344,6 @@ export default function Home() {
                 <span className="relative">Join the TestFlight</span>
               </a>
             </div>
-            <p className="mt-6 text-sm italic text-[var(--color-text-muted)]/80">
-              Limited spots. Beta moves fast.
-            </p>
           </Reveal>
         </section>
       </main>

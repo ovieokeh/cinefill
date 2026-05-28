@@ -56,6 +56,17 @@ export const colors = {
       '#3A424D',
     ],
   },
+  reviewImage: {
+    lanterns: { bg: '#19324A', fg: '#F3E7D3', accent: '#E9B949' },
+    cedar: { bg: '#1D3B34', fg: '#F1F7EC', accent: '#8CCB7E' },
+    vellum: { bg: '#523047', fg: '#F8EBDD', accent: '#D79AAF' },
+    rain: { bg: '#23304F', fg: '#F1F4FF', accent: '#7AA4F6' },
+    blueHour: { bg: '#27364A', fg: '#F9F1D4', accent: '#F0C35B' },
+    paperSun: { bg: '#5A3742', fg: '#FFF0E8', accent: '#F2A65A' },
+    harborNine: { bg: '#123845', fg: '#EAF8F8', accent: '#5CC2BA' },
+    quietSignal: { bg: '#2F2949', fg: '#F2EEFF', accent: '#A58AF0' },
+    juniperTrace: { bg: '#2E4632', fg: '#F2F7E8', accent: '#A6CF72' },
+  },
   // TMDB genre IDs → curated dark-bg-friendly accent colour. Movie and TV
   // catalogues are unioned: ids that exist in both (e.g. Drama 18) only appear
   // once; TV-only ids (10759, 10762, ...) are listed below the movie set.

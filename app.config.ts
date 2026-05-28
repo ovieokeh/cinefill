@@ -106,6 +106,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     tmdbReadToken: process.env.TMDB_API_READ_ACCESS_TOKEN,
     tmdbApiKey: process.env.TMDB_API_KEY,
+    reviewMode: process.env.CINEFILL_REVIEW_MODE === '1',
     eas: {
       "projectId": "ac6c7d5c-d2f2-45e2-ab34-2e826acd128d"
     }

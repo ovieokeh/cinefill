@@ -2,6 +2,8 @@ import * as SQLite from 'expo-sqlite';
 import { ensureColumns, ensureSchema } from './connection';
 import { getDeviceId, isSyncEnabled } from './sync';
 import { notifySyncNeeded } from '@/lib/sync/events';
+import { config } from '@/lib/config';
+import { reviewWatchlistItems } from '@/lib/review-fixtures';
 import {
   isIncomingNewer,
   watchlistSyncId,
@@ -135,6 +137,19 @@ function rowToSyncRecord(row: Row): WatchlistItemRecord {
 }
 
 export async function addToWatchlist(item: NewWatchlistItem): Promise<WatchlistItem> {
+  if (config.reviewMode) {
+    const now = Date.now();
+    return {
+      ...item,
+      syncId: watchlistSyncId(item.mediaType, item.tmdbId),
+      isPublic: false,
+      addedAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      dirty: 0,
+      lastModifiedDeviceId: 'review',
+    };
+  }
   const db = await getDb();
   const addedAt = Date.now();
   const deviceId = await getDeviceId();
@@ -171,6 +186,7 @@ export async function addToWatchlist(item: NewWatchlistItem): Promise<WatchlistI
 
 /** Destructive: removes every watchlist row. Returns the number deleted. */
 export async function deleteAllWatchlist(): Promise<number> {
+  if (config.reviewMode) return 0;
   const db = await getDb();
   if (await isSyncEnabled()) {
     const updatedAt = Date.now();
@@ -191,6 +207,7 @@ export async function deleteAllWatchlist(): Promise<number> {
 }
 
 export async function addToWatchlistBatch(items: NewWatchlistItem[]): Promise<void> {
+  if (config.reviewMode) return;
   if (items.length === 0) return;
   const db = await getDb();
   const addedAt = Date.now();
@@ -224,6 +241,7 @@ export async function removeFromWatchlist(
   tmdbId: number,
   mediaType: WatchlistMediaType,
 ): Promise<void> {
+  if (config.reviewMode) return;
   const db = await getDb();
   if (await isSyncEnabled()) {
     const updatedAt = Date.now();
@@ -249,6 +267,7 @@ export async function setWatchlistItemPublic(
   mediaType: WatchlistMediaType,
   isPublic: boolean,
 ): Promise<void> {
+  if (config.reviewMode) return;
   const db = await getDb();
   const updatedAt = Date.now();
   const deviceId = await getDeviceId();
@@ -269,6 +288,11 @@ export async function isInWatchlist(
   tmdbId: number,
   mediaType: WatchlistMediaType,
 ): Promise<boolean> {
+  if (config.reviewMode) {
+    return reviewWatchlistItems.some(
+      (item) => item.tmdbId === tmdbId && item.mediaType === mediaType,
+    );
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) AS c FROM watchlist WHERE tmdb_id = ? AND media_type = ? AND deleted_at IS NULL',
@@ -279,6 +303,7 @@ export async function isInWatchlist(
 }
 
 export async function countWatchlist(): Promise<number> {
+  if (config.reviewMode) return reviewWatchlistItems.length;
   const db = await getDb();
   const row = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) AS c FROM watchlist WHERE deleted_at IS NULL',
@@ -290,6 +315,13 @@ export async function getWatchlistItem(
   tmdbId: number,
   mediaType: WatchlistMediaType,
 ): Promise<WatchlistItem | null> {
+  if (config.reviewMode) {
+    return (
+      (reviewWatchlistItems.find(
+        (item) => item.tmdbId === tmdbId && item.mediaType === mediaType,
+      ) as WatchlistItem | undefined) ?? null
+    );
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
     `SELECT ${SELECT_COLS} FROM watchlist WHERE tmdb_id = ? AND media_type = ? AND deleted_at IS NULL`,
@@ -300,6 +332,7 @@ export async function getWatchlistItem(
 }
 
 export async function listWatchlist(): Promise<WatchlistItem[]> {
+  if (config.reviewMode) return reviewWatchlistItems as WatchlistItem[];
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM watchlist WHERE deleted_at IS NULL ORDER BY added_at DESC`,

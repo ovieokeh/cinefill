@@ -2,6 +2,8 @@ import * as SQLite from 'expo-sqlite';
 import { ensureColumns, ensureSchema } from './connection';
 import { getDeviceId, isSyncEnabled } from './sync';
 import { notifySyncNeeded } from '@/lib/sync/events';
+import { config } from '@/lib/config';
+import { reviewStandouts } from '@/lib/review-fixtures';
 import {
   isIncomingNewer,
   standoutSyncId,
@@ -126,6 +128,18 @@ function rowToSyncRecord(row: Row): EpisodeStandoutRecord {
 }
 
 export async function markStandout(item: NewEpisodeStandout): Promise<EpisodeStandout> {
+  if (config.reviewMode) {
+    const now = Date.now();
+    return {
+      ...item,
+      syncId: standoutSyncId(item.tmdbId, item.seasonNumber, item.episodeNumber),
+      markedAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      dirty: 0,
+      lastModifiedDeviceId: 'review',
+    };
+  }
   const db = await getDb();
   const markedAt = Date.now();
   const deviceId = await getDeviceId();
@@ -165,6 +179,7 @@ export async function unmarkStandout(
   seasonNumber: number,
   episodeNumber: number,
 ): Promise<void> {
+  if (config.reviewMode) return;
   const db = await getDb();
   if (await isSyncEnabled()) {
     const updatedAt = Date.now();
@@ -196,6 +211,14 @@ export async function isStandout(
   seasonNumber: number,
   episodeNumber: number,
 ): Promise<boolean> {
+  if (config.reviewMode) {
+    return reviewStandouts.some(
+      (item) =>
+        item.tmdbId === tmdbId &&
+        item.seasonNumber === seasonNumber &&
+        item.episodeNumber === episodeNumber,
+    );
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) AS c FROM tv_episode_standouts WHERE tmdb_id = ? AND season_number = ? AND episode_number = ? AND deleted_at IS NULL',
@@ -207,6 +230,7 @@ export async function isStandout(
 }
 
 export async function countStandouts(): Promise<number> {
+  if (config.reviewMode) return reviewStandouts.length;
   const db = await getDb();
   const row = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) AS c FROM tv_episode_standouts WHERE deleted_at IS NULL',
@@ -215,6 +239,9 @@ export async function countStandouts(): Promise<number> {
 }
 
 export async function listStandoutsForShow(tmdbId: number): Promise<EpisodeStandout[]> {
+  if (config.reviewMode) {
+    return reviewStandouts.filter((item) => item.tmdbId === tmdbId) as EpisodeStandout[];
+  }
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM tv_episode_standouts WHERE tmdb_id = ? AND deleted_at IS NULL ORDER BY season_number ASC, episode_number ASC`,
@@ -227,6 +254,11 @@ export async function listStandoutsForSeason(
   tmdbId: number,
   seasonNumber: number,
 ): Promise<EpisodeStandout[]> {
+  if (config.reviewMode) {
+    return reviewStandouts.filter(
+      (item) => item.tmdbId === tmdbId && item.seasonNumber === seasonNumber,
+    ) as EpisodeStandout[];
+  }
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM tv_episode_standouts WHERE tmdb_id = ? AND season_number = ? AND deleted_at IS NULL ORDER BY episode_number ASC`,
@@ -237,6 +269,7 @@ export async function listStandoutsForSeason(
 }
 
 export async function listStandouts(): Promise<EpisodeStandout[]> {
+  if (config.reviewMode) return reviewStandouts as EpisodeStandout[];
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM tv_episode_standouts WHERE deleted_at IS NULL ORDER BY marked_at DESC`,
@@ -246,6 +279,7 @@ export async function listStandouts(): Promise<EpisodeStandout[]> {
 
 /** Destructive: removes every standout. Returns the number deleted. */
 export async function deleteAllStandouts(): Promise<number> {
+  if (config.reviewMode) return 0;
   const db = await getDb();
   if (await isSyncEnabled()) {
     const updatedAt = Date.now();

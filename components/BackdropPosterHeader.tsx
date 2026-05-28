@@ -6,7 +6,9 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/theme';
+import { spacing } from '@/theme/tokens';
 import { backdropUrl } from '@/lib/tmdb';
+import { getReviewImageMeta } from '@/lib/review-fixtures';
 import { PosterImage } from './PosterImage';
 import { Skeleton, SkeletonPoster, SkeletonText } from './Skeleton';
 import { Text } from './Text';
@@ -47,6 +49,7 @@ export function BackdropPosterHeader({
 }: Props) {
   const t = useTheme();
   const backdrop = backdropUrl(backdropPath, 'w1280');
+  const reviewBackdrop = getReviewImageMeta(backdropPath);
   const textMetaPieces = [year, formatRuntime(runtime)].filter(
     (x): x is string => !!x,
   );
@@ -69,7 +72,32 @@ export function BackdropPosterHeader({
     <View>
       <View style={[styles.backdropFrame, { backgroundColor: t.colors.bg.surface }]}>
         <Animated.View style={[StyleSheet.absoluteFill, animatedBackdropStyle]}>
-          {backdrop ? (
+          {reviewBackdrop ? (
+            <View style={[styles.reviewBackdrop, { backgroundColor: reviewBackdrop.bg }]}>
+              <View
+                style={[
+                  styles.reviewBackdropAccent,
+                  { backgroundColor: reviewBackdrop.accent },
+                ]}
+              />
+              <Text
+                variant="label"
+                style={[
+                  styles.reviewBackdropEyebrow,
+                  { color: reviewBackdrop.accent },
+                ]}
+              >
+                CINEFILL DEMO
+              </Text>
+              <Text
+                variant="displayMd"
+                style={[styles.reviewBackdropTitle, { color: reviewBackdrop.fg }]}
+                numberOfLines={2}
+              >
+                {reviewBackdrop.title}
+              </Text>
+            </View>
+          ) : backdrop ? (
             <Image
               source={{ uri: backdrop }}
               style={styles.backdropImage}
@@ -160,6 +188,28 @@ const styles = StyleSheet.create({
   backdropImage: {
     width: '100%',
     height: '100%',
+  },
+  reviewBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    padding: spacing.xl,
+  },
+  reviewBackdropAccent: {
+    position: 'absolute',
+    bottom: -80,
+    right: -60,
+    width: '58%',
+    height: '72%',
+    opacity: 0.6,
+    transform: [{ rotate: '-10deg' }],
+  },
+  reviewBackdropEyebrow: {
+    textTransform: 'uppercase',
+  },
+  reviewBackdropTitle: {
+    maxWidth: '64%',
+    textTransform: 'uppercase',
   },
   row: {
     flexDirection: 'row',

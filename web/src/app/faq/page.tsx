@@ -7,11 +7,64 @@ import { SectionEyebrow } from "@/components/section-eyebrow";
 export const metadata: Metadata = {
   title: "FAQ",
   description:
-    "cinefill sync FAQ: what sync does, how to set it up, privacy controls, public sharing, and troubleshooting.",
+    "cinefill FAQ: importing your diary, exporting your data, optional sync, privacy controls, and troubleshooting.",
   alternates: { canonical: "/faq" },
 };
 
-const faqs = [
+const importFaqs = [
+  {
+    question: "Can I import my existing diary?",
+    answer: (
+      <>
+        Yes. cinefill can import a compatible export zip with diary entries,
+        ratings, reviews, and watchlist items. The import runs on your device,
+        skips duplicates, and keeps the original watched dates where possible.
+      </>
+    ),
+  },
+  {
+    question: "Where do I start an import?",
+    answer: (
+      <>
+        Open the gear in the You tab, choose <em>Import</em>, then select the
+        export zip from Files. Keep the zip intact; cinefill expects the files
+        inside it to stay in their original names and folders.
+      </>
+    ),
+  },
+  {
+    question: "What happens if something cannot be matched?",
+    answer: (
+      <>
+        cinefill imports the entries it can match cleanly and leaves unmatched
+        items out rather than guessing. You can still add those films or shows
+        manually from Search afterward.
+      </>
+    ),
+  },
+  {
+    question: "Does importing upload my data?",
+    answer: (
+      <>
+        No. Importing reads the file you choose on-device and writes the matched
+        entries into your local diary and watchlist. It does not create an
+        account or upload your diary to cinefill.
+      </>
+    ),
+  },
+  {
+    question: "Can I export instead of syncing?",
+    answer: (
+      <>
+        Yes. Export data creates a local zip with JSON and CSV files for your
+        diary, watchlist, and TV episode standouts. Exporting does not send data
+        to cinefill or to a sync server.
+      </>
+    ),
+  },
+];
+
+const syncFaqs = [
   {
     question: "What is sync?",
     answer: (
@@ -66,7 +119,7 @@ const faqs = [
         Existing diary entries, watchlist items, and standout episodes are
         uploaded as private records. Other devices using the same server and
         token can then pull them down. The first sync can take a moment if you
-        imported a large Letterboxd history.
+        imported a large history.
       </>
     ),
   },
@@ -114,16 +167,6 @@ const faqs = [
       </>
     ),
   },
-  {
-    question: "Can I export instead of syncing?",
-    answer: (
-      <>
-        Yes. Export data creates a local zip with JSON and CSV files for your
-        diary, watchlist, and TV episode standouts. Exporting does not send data
-        to cinefill or to a sync server.
-      </>
-    ),
-  },
 ];
 
 export default function FAQPage() {
@@ -134,18 +177,34 @@ export default function FAQPage() {
         <article className="mx-auto max-w-2xl px-6 lg:px-10">
           <SectionEyebrow title="FAQ" />
           <h1 className="mt-5 font-display text-[clamp(2rem,4vw,3rem)] leading-[1.05] tracking-[-0.01em]">
-            Sync without surprises.
+            Import, export, and sync without surprises.
           </h1>
           <p className="mt-5 text-[var(--color-text-soft)] leading-[1.75]">
-            cinefill is local-first. Sync is there when you want backup,
-            multiple devices, or a personal public media page, and every public
-            record is opt-in.
+            cinefill is local-first. Bring a diary in, take a copy back out, and
+            enable sync only when you want backup, multiple devices, or a
+            personal public media page.
           </p>
+
+          <section className="mt-12">
+            <h2 className="font-display text-2xl">Import + export</h2>
+            <div className="mt-6 space-y-8">
+              {importFaqs.map((item) => (
+                <div key={item.question}>
+                  <h3 className="font-display text-lg text-[var(--color-text)]">
+                    {item.question}
+                  </h3>
+                  <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
+                    {item.answer}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <section className="mt-12">
             <h2 className="font-display text-2xl">Sync basics</h2>
             <div className="mt-6 space-y-8">
-              {faqs.map((item) => (
+              {syncFaqs.map((item) => (
                 <div key={item.question}>
                   <h3 className="font-display text-lg text-[var(--color-text)]">
                     {item.question}

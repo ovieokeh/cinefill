@@ -1,4 +1,14 @@
 import { config, assertTmdbConfigured } from './config';
+import {
+  isReviewImagePath,
+  reviewDiscoverItems,
+  reviewGenres,
+  reviewMovieDetails,
+  reviewMovies,
+  reviewPeople,
+  reviewSeasonDetails,
+  reviewTvDetails,
+} from './review-fixtures';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 export const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p';
@@ -122,6 +132,7 @@ function normalize(raw: TmdbSearchResponse['results'][number]): TmdbMovie {
 }
 
 export function posterUrl(posterPath: string | null, size: 'w154' | 'w342' | 'w500' = 'w342'): string | null {
+  if (isReviewImagePath(posterPath)) return null;
   if (!posterPath) return null;
   return `${TMDB_IMG_BASE}/${size}${posterPath}`;
 }
@@ -130,16 +141,19 @@ export function backdropUrl(
   path: string | null,
   size: 'w780' | 'w1280' | 'original' = 'w1280',
 ): string | null {
+  if (isReviewImagePath(path)) return null;
   if (!path) return null;
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
 
 export function profileUrl(path: string | null, size: 'w185' | 'h632' = 'w185'): string | null {
+  if (isReviewImagePath(path)) return null;
   if (!path) return null;
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
 
 export function logoUrl(path: string | null, size: 'w92' | 'w154' = 'w92'): string | null {
+  if (isReviewImagePath(path)) return null;
   if (!path) return null;
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
@@ -148,6 +162,7 @@ export function personUrl(
   path: string | null,
   size: 'w185' | 'h632' | 'original' = 'h632',
 ): string | null {
+  if (isReviewImagePath(path)) return null;
   if (!path) return null;
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
@@ -156,6 +171,7 @@ export function stillUrl(
   path: string | null,
   size: 'w185' | 'w300' | 'original' = 'w300',
 ): string | null {
+  if (isReviewImagePath(path)) return null;
   if (!path) return null;
   return `${TMDB_IMG_BASE}/${size}${path}`;
 }
@@ -455,6 +471,7 @@ function pickTvRecommendations(
 }
 
 export async function getTvDetails(tvId: number, signal?: AbortSignal): Promise<TvDetails> {
+  if (config.reviewMode) return reviewTvDetails(tvId) as TvDetails;
   assertTmdbConfigured();
   const url = `${TMDB_BASE}/tv/${tvId}?append_to_response=aggregate_credits,videos,watch/providers,content_ratings,recommendations&language=en-US`;
   const res = await fetch(url, {
@@ -541,6 +558,7 @@ export async function getSeasonDetails(
   seasonNumber: number,
   signal?: AbortSignal,
 ): Promise<SeasonDetails> {
+  if (config.reviewMode) return reviewSeasonDetails(tvId, seasonNumber) as SeasonDetails;
   assertTmdbConfigured();
   const url = `${TMDB_BASE}/tv/${tvId}/season/${seasonNumber}?language=en-US`;
   const res = await fetch(url, {
@@ -576,6 +594,29 @@ export async function getPersonDetails(
   personId: number,
   signal?: AbortSignal,
 ): Promise<PersonDetails> {
+  if (config.reviewMode) {
+    const person = reviewPeople.find((p) => p.tmdbId === personId) ?? reviewPeople[0];
+    return {
+      id: person.tmdbId,
+      name: person.name,
+      biography:
+        'Fictional profile used only for cinefill screenshot and App Store review mode.',
+      birthday: '1988-04-12',
+      deathday: null,
+      placeOfBirth: 'Cinefill Demo City',
+      profilePath: person.profilePath,
+      knownForDepartment: person.knownFor,
+      credits: reviewDiscoverItems('all').slice(0, 6).map((item) => ({
+        tmdbId: item.tmdbId,
+        mediaType: item.mediaType,
+        title: item.title,
+        year: item.year,
+        posterPath: item.posterPath,
+        role: person.knownFor,
+        department: person.knownFor,
+      })),
+    };
+  }
   assertTmdbConfigured();
   const url = `${TMDB_BASE}/person/${personId}?append_to_response=combined_credits&language=en-US`;
   const res = await fetch(url, {
@@ -661,6 +702,26 @@ export async function discoverByGenre(
   page: number,
   signal?: AbortSignal,
 ): Promise<DiscoverPage> {
+  if (config.reviewMode) {
+    const filters: DiscoverFilters =
+      typeof filtersOrGenreId === 'number'
+        ? { genreId: filtersOrGenreId }
+        : filtersOrGenreId;
+    const filtered = reviewDiscoverItems(mediaType).filter((item) => {
+      const details =
+        item.mediaType === 'movie'
+          ? reviewMovieDetails(item.tmdbId)
+          : reviewTvDetails(item.tmdbId);
+      const matchesGenre =
+        filters.genreId == null || details.genres.some((g) => g.id === filters.genreId);
+      const year = Number(item.year?.slice(0, 4));
+      const matchesDecade =
+        filters.decade == null ||
+        (Number.isFinite(year) && Math.floor(year / 10) * 10 === filters.decade);
+      return matchesGenre && matchesDecade;
+    });
+    return { page: 1, totalPages: 1, results: filtered };
+  }
   assertTmdbConfigured();
   const filters: DiscoverFilters =
     typeof filtersOrGenreId === 'number'
@@ -811,10 +872,60 @@ function normalizePersonSearch(r: RawMultiResult): PersonSearchResult {
   };
 }
 
+function reviewSearchResults(
+  query: string,
+  mediaType: 'all' | 'movie' | 'tv' | 'person',
+): SearchResult[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const mediaItems = reviewDiscoverItems(
+    mediaType === 'movie' || mediaType === 'tv' ? mediaType : 'all',
+  )
+    .filter((item) => mediaType === 'all' || item.mediaType === mediaType)
+    .filter((item) => item.title.toLowerCase().includes(q))
+    .map((item): MovieSearchResult | TvSearchResult => {
+      if (item.mediaType === 'movie') {
+        const details = reviewMovieDetails(item.tmdbId);
+        return {
+          tmdbId: item.tmdbId,
+          mediaType: 'movie',
+          title: item.title,
+          year: item.year,
+          posterPath: item.posterPath,
+          genreIds: details.genres.map((g) => g.id),
+        };
+      }
+      const details = reviewTvDetails(item.tmdbId);
+      return {
+        tmdbId: item.tmdbId,
+        mediaType: 'tv',
+        title: item.title,
+        year: item.year,
+        posterPath: item.posterPath,
+        genreIds: details.genres.map((g) => g.id),
+      };
+    });
+  const people =
+    mediaType === 'movie' || mediaType === 'tv'
+      ? []
+      : reviewPeople
+          .filter((p) => p.name.toLowerCase().includes(q))
+          .map((p): PersonSearchResult => ({
+            tmdbId: p.tmdbId,
+            mediaType: 'person',
+            name: p.name,
+            profilePath: p.profilePath,
+            knownFor: p.knownFor,
+          }));
+  return [...mediaItems, ...people];
+}
+
 export async function searchMulti(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
-  assertTmdbConfigured();
   const trimmed = query.trim();
   if (!trimmed) return [];
+  if (config.reviewMode) return reviewSearchResults(trimmed, 'all');
+
+  assertTmdbConfigured();
 
   const url = `${TMDB_BASE}/search/multi?query=${encodeURIComponent(trimmed)}&include_adult=false&language=en-US&page=1`;
   const res = await fetch(url, {
@@ -845,9 +956,17 @@ export async function searchByType(
   page = 1,
   signal?: AbortSignal,
 ): Promise<SearchPage> {
-  assertTmdbConfigured();
   const trimmed = query.trim();
   if (!trimmed) return { page: 1, totalPages: 1, results: [] };
+  if (config.reviewMode) {
+    return {
+      page: 1,
+      totalPages: 1,
+      results: reviewSearchResults(trimmed, mediaType),
+    };
+  }
+
+  assertTmdbConfigured();
 
   const url = `${TMDB_BASE}/search/${mediaType}?query=${encodeURIComponent(trimmed)}&include_adult=false&language=en-US&page=${page}`;
   const res = await fetch(url, {
@@ -876,9 +995,23 @@ export async function searchByType(
 }
 
 export async function searchMovies(query: string, signal?: AbortSignal): Promise<TmdbMovie[]> {
-  assertTmdbConfigured();
   const trimmed = query.trim();
   if (!trimmed) return [];
+  if (config.reviewMode) {
+    const q = trimmed.toLowerCase();
+    return reviewMovies
+      .filter((m) => m.title.toLowerCase().includes(q))
+      .map((m) => ({
+        tmdbId: m.tmdbId,
+        title: m.title,
+        year: m.year,
+        posterPath: m.posterPath,
+        overview: m.overview,
+        popularity: m.popularity,
+      }));
+  }
+
+  assertTmdbConfigured();
 
   const url = `${TMDB_BASE}/search/movie?query=${encodeURIComponent(trimmed)}&include_adult=false&language=en-US&page=1`;
   const res = await fetch(url, {
@@ -985,6 +1118,7 @@ export async function getMovieDetails(
   tmdbId: number,
   signal?: AbortSignal,
 ): Promise<MovieDetails> {
+  if (config.reviewMode) return reviewMovieDetails(tmdbId) as MovieDetails;
   assertTmdbConfigured();
   const url = `${TMDB_BASE}/movie/${tmdbId}?append_to_response=credits,videos,watch/providers,release_dates,recommendations&language=en-US`;
   const res = await fetch(url, {
@@ -1040,6 +1174,7 @@ export async function getGenres(
   mediaType: 'movie' | 'tv',
   signal?: AbortSignal,
 ): Promise<GenreRef[]> {
+  if (config.reviewMode) return reviewGenres[mediaType];
   assertTmdbConfigured();
   const url = `${TMDB_BASE}/genre/${mediaType}/list?language=en-US`;
   const res = await fetch(url, {
@@ -1092,6 +1227,7 @@ export async function getTrending(
   mediaType: 'all' | 'movie' | 'tv',
   signal?: AbortSignal,
 ): Promise<DiscoverItem[]> {
+  if (config.reviewMode) return reviewDiscoverItems(mediaType);
   assertTmdbConfigured();
   const url = `${TMDB_BASE}/trending/${mediaType}/day?language=en-US`;
   const res = await fetch(url, {
@@ -1140,6 +1276,7 @@ type RawPopularPerson = {
 };
 
 export async function getPopularMovies(signal?: AbortSignal): Promise<DiscoverItem[]> {
+  if (config.reviewMode) return reviewDiscoverItems('movie');
   assertTmdbConfigured();
   const res = await fetch(`${TMDB_BASE}/movie/popular?language=en-US&page=1`, {
     headers: {
@@ -1162,6 +1299,7 @@ export async function getPopularMovies(signal?: AbortSignal): Promise<DiscoverIt
 }
 
 export async function getPopularTv(signal?: AbortSignal): Promise<DiscoverItem[]> {
+  if (config.reviewMode) return reviewDiscoverItems('tv');
   assertTmdbConfigured();
   const res = await fetch(`${TMDB_BASE}/tv/popular?language=en-US&page=1`, {
     headers: {
@@ -1184,6 +1322,7 @@ export async function getPopularTv(signal?: AbortSignal): Promise<DiscoverItem[]
 }
 
 export async function getPopularPeople(signal?: AbortSignal): Promise<PersonSearchResult[]> {
+  if (config.reviewMode) return reviewPeople;
   assertTmdbConfigured();
   const res = await fetch(`${TMDB_BASE}/person/popular?language=en-US&page=1`, {
     headers: {

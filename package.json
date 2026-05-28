@@ -4,8 +4,10 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:review": "CINEFILL_REVIEW_MODE=1 expo start --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:review": "CINEFILL_REVIEW_MODE=1 expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",

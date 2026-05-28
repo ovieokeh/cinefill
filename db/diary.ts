@@ -2,6 +2,8 @@ import * as SQLite from 'expo-sqlite';
 import { ensureColumns, ensureSchema } from './connection';
 import { getDeviceId, isSyncEnabled } from './sync';
 import { notifySyncNeeded } from '@/lib/sync/events';
+import { config } from '@/lib/config';
+import { reviewDiaryEntries } from '@/lib/review-fixtures';
 import {
   createRandomSyncId,
   isIncomingNewer,
@@ -171,6 +173,9 @@ function rowToSyncRecord(row: Row): DiaryEntryRecord {
 }
 
 export async function getEntry(id: number): Promise<DiaryEntry | null> {
+  if (config.reviewMode) {
+    return (reviewDiaryEntries.find((entry) => entry.id === id) as DiaryEntry | undefined) ?? null;
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
     `SELECT ${SELECT_COLS} FROM entries WHERE id = ? AND deleted_at IS NULL`,
@@ -180,6 +185,13 @@ export async function getEntry(id: number): Promise<DiaryEntry | null> {
 }
 
 export async function getEntryByTmdbId(tmdbId: number): Promise<DiaryEntry | null> {
+  if (config.reviewMode) {
+    return (
+      (reviewDiaryEntries.find(
+        (entry) => entry.tmdbId === tmdbId && entry.mediaType === 'movie',
+      ) as DiaryEntry | undefined) ?? null
+    );
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
     `SELECT ${SELECT_COLS} FROM entries WHERE tmdb_id = ? AND media_type = 'movie' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`,
@@ -192,6 +204,16 @@ export async function getTvSeasonEntry(
   tmdbId: number,
   seasonNumber: number,
 ): Promise<DiaryEntry | null> {
+  if (config.reviewMode) {
+    return (
+      (reviewDiaryEntries.find(
+        (entry) =>
+          entry.tmdbId === tmdbId &&
+          entry.mediaType === 'tv_season' &&
+          entry.seasonNumber === seasonNumber,
+      ) as DiaryEntry | undefined) ?? null
+    );
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
     `SELECT ${SELECT_COLS} FROM entries WHERE tmdb_id = ? AND media_type = 'tv_season' AND season_number = ? AND deleted_at IS NULL LIMIT 1`,
@@ -202,6 +224,11 @@ export async function getTvSeasonEntry(
 }
 
 export async function listShowSeasonEntries(tmdbId: number): Promise<DiaryEntry[]> {
+  if (config.reviewMode) {
+    return reviewDiaryEntries.filter(
+      (entry) => entry.tmdbId === tmdbId && entry.mediaType === 'tv_season',
+    ) as DiaryEntry[];
+  }
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM entries WHERE tmdb_id = ? AND media_type = 'tv_season' AND deleted_at IS NULL ORDER BY season_number ASC`,
@@ -213,6 +240,13 @@ export async function listShowSeasonEntries(tmdbId: number): Promise<DiaryEntry[
 export async function getShowSeasonStats(
   tmdbId: number,
 ): Promise<{ mean: number; count: number }> {
+  if (config.reviewMode) {
+    const entries = reviewDiaryEntries.filter(
+      (entry) => entry.tmdbId === tmdbId && entry.mediaType === 'tv_season' && entry.rating > 0,
+    );
+    const total = entries.reduce((sum, entry) => sum + entry.rating, 0);
+    return { mean: entries.length > 0 ? total / entries.length : 0, count: entries.length };
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<{ mean: number | null; count: number }>(
     `SELECT AVG(rating) AS mean, COUNT(*) AS count FROM entries WHERE tmdb_id = ? AND media_type = 'tv_season' AND rating > 0 AND deleted_at IS NULL`,
@@ -222,6 +256,7 @@ export async function getShowSeasonStats(
 }
 
 export async function listEntries(): Promise<DiaryEntry[]> {
+  if (config.reviewMode) return reviewDiaryEntries as DiaryEntry[];
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM entries WHERE deleted_at IS NULL ORDER BY watched_date DESC, created_at DESC`,
@@ -233,6 +268,7 @@ export async function updateEntry(
   id: number,
   patch: Pick<DiaryEntry, 'watchedDate' | 'rating' | 'note'>,
 ): Promise<void> {
+  if (config.reviewMode) return;
   const db = await getDb();
   const updatedAt = Date.now();
   const deviceId = await getDeviceId();
@@ -249,6 +285,7 @@ export async function updateEntry(
 }
 
 export async function setEntryPublic(id: number, isPublic: boolean): Promise<void> {
+  if (config.reviewMode) return;
   const db = await getDb();
   const updatedAt = Date.now();
   const deviceId = await getDeviceId();
@@ -263,6 +300,7 @@ export async function setEntryPublic(id: number, isPublic: boolean): Promise<voi
 }
 
 export async function deleteEntry(id: number): Promise<void> {
+  if (config.reviewMode) return;
   const db = await getDb();
   if (await isSyncEnabled()) {
     const updatedAt = Date.now();
@@ -281,6 +319,19 @@ export async function deleteEntry(id: number): Promise<void> {
 }
 
 export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
+  if (config.reviewMode) {
+    return {
+      ...entry,
+      id: reviewDiaryEntries.length + 1,
+      syncId: `review-diary-${reviewDiaryEntries.length + 1}`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      deletedAt: null,
+      dirty: 0,
+      isPublic: false,
+      lastModifiedDeviceId: 'review',
+    };
+  }
   const db = await getDb();
   const createdAt = Date.now();
   const deviceId = await getDeviceId();
@@ -323,6 +374,7 @@ export async function addEntry(entry: NewDiaryEntry): Promise<DiaryEntry> {
 }
 
 export async function addEntries(entries: NewDiaryEntry[]): Promise<void> {
+  if (config.reviewMode) return;
   if (entries.length === 0) return;
   const db = await getDb();
   const createdAt = Date.now();
@@ -359,6 +411,7 @@ export async function addEntries(entries: NewDiaryEntry[]): Promise<void> {
 
 /** Destructive: removes every diary entry. Returns the number deleted. */
 export async function deleteAllEntries(): Promise<number> {
+  if (config.reviewMode) return 0;
   const db = await getDb();
   if (await isSyncEnabled()) {
     const updatedAt = Date.now();

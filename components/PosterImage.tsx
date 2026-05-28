@@ -1,7 +1,9 @@
 import { Image, ImageStyle } from 'expo-image';
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme';
+import { spacing } from '@/theme/tokens';
 import { posterUrl } from '@/lib/tmdb';
+import { getReviewImageMeta } from '@/lib/review-fixtures';
 import { Text } from './Text';
 
 type Size = 'sm' | 'md' | 'lg';
@@ -24,6 +26,53 @@ export function PosterImage({
   const t = useTheme();
   const dim = DIMENSIONS[size];
   const url = posterUrl(posterPath, dim.tmdbSize);
+  const reviewMeta = getReviewImageMeta(posterPath);
+
+  if (reviewMeta) {
+    return (
+      <View
+        style={[
+          styles.reviewPoster,
+          {
+            width: dim.width,
+            height: dim.height,
+            borderRadius: t.radii.sm,
+            backgroundColor: reviewMeta.bg,
+          },
+          style,
+        ]}
+      >
+        <View
+          style={[
+            styles.reviewAccent,
+            {
+              backgroundColor: reviewMeta.accent,
+              opacity: size === 'sm' ? 0.72 : 0.82,
+            },
+          ]}
+        />
+        <Text
+          variant={size === 'lg' ? 'label' : 'caption'}
+          style={[
+            styles.reviewEyebrow,
+            {
+              color: reviewMeta.accent,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {reviewMeta.eyebrow}
+        </Text>
+        <Text
+          variant={size === 'lg' ? 'titleMd' : 'caption'}
+          style={[styles.reviewTitle, { color: reviewMeta.fg }]}
+          numberOfLines={size === 'sm' ? 2 : 4}
+        >
+          {reviewMeta.title}
+        </Text>
+      </View>
+    );
+  }
 
   if (!url) {
     return (
@@ -69,5 +118,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  reviewPoster: {
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    padding: spacing.sm,
+  },
+  reviewAccent: {
+    position: 'absolute',
+    bottom: -24,
+    right: -18,
+    width: '82%',
+    height: '48%',
+    transform: [{ rotate: '-12deg' }],
+  },
+  reviewEyebrow: {
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  reviewTitle: {
+    textTransform: 'uppercase',
   },
 });

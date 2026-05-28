@@ -92,6 +92,25 @@ If the simulator already has a current dev client installed, `npm run start`
 is enough. If Metro shows a native module missing error, rebuild with
 `npm run ios` again.
 
+### App Store screenshot mode
+
+Use review mode when capturing App Store screenshots. It replaces TMDB/search
+responses and local diary/watchlist reads with fictional fixture data, including
+fictional posters, titles, cast, and crew, so screenshot metadata does not show
+third-party film or TV IP.
+
+```bash
+npm run start:review
+```
+
+If you need to rebuild the native app while review mode is active:
+
+```bash
+npm run ios:review
+```
+
+Do not use review mode for production builds.
+
 ## Run The Website
 
 ```bash

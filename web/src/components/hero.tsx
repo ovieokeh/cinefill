@@ -49,7 +49,7 @@ export function Hero() {
         <Reveal className="flex justify-center md:justify-end" delay={200}>
           <DeviceFrame glow="hero" className="w-full max-w-[19rem] md:max-w-[22rem]">
             <Image
-              src="/promo/you-main.png"
+              src="/promo/your-taste-iphone.png"
               alt="cinefill's You tab — your taste, written like a magazine cover"
               width={1206}
               height={2622}

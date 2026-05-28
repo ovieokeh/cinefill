@@ -1,5 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { ensureSchema } from './connection';
+import { config } from '@/lib/config';
+import { reviewMediaCacheRows } from '@/lib/review-fixtures';
 
 export type CachedSeason = {
   seasonNumber: number;
@@ -105,6 +107,16 @@ function rowToCache(row: Row): MediaCacheRow {
 }
 
 export async function upsertMediaCache(item: NewMediaCacheRow): Promise<MediaCacheRow> {
+  if (config.reviewMode) {
+    return (
+      (reviewMediaCacheRows.find(
+        (row) => row.tmdbId === item.tmdbId && row.mediaType === item.mediaType,
+      ) as MediaCacheRow | undefined) ?? {
+        ...item,
+        fetchedAt: Date.now(),
+      }
+    );
+  }
   const db = await getDb();
   const fetchedAt = Date.now();
   await db.runAsync(
@@ -130,6 +142,13 @@ export async function getMediaCache(
   tmdbId: number,
   mediaType: 'movie' | 'tv',
 ): Promise<MediaCacheRow | null> {
+  if (config.reviewMode) {
+    return (
+      (reviewMediaCacheRows.find(
+        (row) => row.tmdbId === tmdbId && row.mediaType === mediaType,
+      ) as MediaCacheRow | undefined) ?? null
+    );
+  }
   const db = await getDb();
   const row = await db.getFirstAsync<Row>(
     `SELECT ${SELECT_COLS} FROM media_cache WHERE tmdb_id = ? AND media_type = ?`,
@@ -140,6 +159,7 @@ export async function getMediaCache(
 }
 
 export async function listAllCache(): Promise<MediaCacheRow[]> {
+  if (config.reviewMode) return reviewMediaCacheRows as MediaCacheRow[];
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT ${SELECT_COLS} FROM media_cache`,
