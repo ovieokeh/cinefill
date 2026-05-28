@@ -36,7 +36,7 @@ const jsonLd = {
         "Watchlist with genre, decade, and media-type filters",
         "Taste profile — moods, genre lean, era, loyalty",
         "Online catalog discovery with watched / watchlist badges on every result",
-        "Compatible diary import from a standard export zip",
+        "Letterboxd diary import from a standard export zip",
         "Cinefill export zip with JSON and CSV files",
         "Local-first storage; no accounts, no analytics; optional personal sync",
       ],
@@ -296,10 +296,12 @@ export default function Home() {
                 Bring your history in. Take your data&nbsp;out.
               </h3>
               <p className="mt-3 max-w-xl leading-[1.7] text-[var(--color-text-muted)]">
-                Drop in a compatible export zip to bring over diary entries,
-                reviews, and watchlist items. Duplicates are skipped. When you
-                want a copy back out, cinefill exports a zip with JSON and CSV
-                files for your diary, watchlist, and standout episodes.
+                Coming from Letterboxd? Export your data there, then drop the
+                zip into cinefill to bring over your diary entries, reviews, and
+                watchlist &mdash; anything you&rsquo;ve already logged is
+                skipped. When you want a copy back out, cinefill exports a zip
+                with JSON and CSV files for your diary, watchlist, and standout
+                episodes.
               </p>
               <a
                 href="/faq"

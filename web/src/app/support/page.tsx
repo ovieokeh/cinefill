@@ -77,7 +77,7 @@ export default function SupportPage() {
                 <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
                   cinefill stores everything locally first. If sync was enabled
                   and had completed, install cinefill again, enter the same
-                  server URL and token, then run Sync Now. If sync was never
+                  server URL and token, then tap Sync now. If sync was never
                   configured, or the data never reached your server, deleting
                   the app or wiping the phone removes the only copy.
                 </p>
@@ -89,11 +89,11 @@ export default function SupportPage() {
                 </h3>
                 <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">
                   Sync is optional. When enabled, cinefill mirrors diary
-                  entries, watchlist items, standout episodes, deletion markers,
-                  timestamps, and a random device ID to the server URL you
-                  enter. Diary and watchlist items include a private-by-default
-                  visibility flag, and only items you mark public should appear
-                  on a public site. Cached TMDB metadata stays local. The
+                  entries, watchlist items, standout episodes, a record of
+                  anything you deleted, sync timestamps, and a random device ID
+                  to the server URL you enter. Diary and watchlist items are
+                  private by default, and only items you mark public should
+                  appear on a public site. Cached TMDB metadata stays local. The
                   privacy page has the full list.
                 </p>
                 <p className="mt-2 text-[0.95rem] leading-[1.7] text-[var(--color-text-muted)]">

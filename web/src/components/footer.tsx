@@ -29,6 +29,12 @@ export function Footer() {
               FAQ
             </Link>
             <Link
+              href="/sync"
+              className="transition-colors hover:text-[var(--color-text)]"
+            >
+              Sync setup
+            </Link>
+            <Link
               href="/privacy"
               className="transition-colors hover:text-[var(--color-text)]"
             >

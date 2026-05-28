@@ -13,22 +13,35 @@ export const metadata: Metadata = {
 
 const importFaqs = [
   {
-    question: "Can I import my existing diary?",
+    question: "Can I import my Letterboxd diary?",
     answer: (
       <>
-        Yes. cinefill can import a compatible export zip with diary entries,
-        ratings, reviews, and watchlist items. The import runs on your device,
-        skips duplicates, and keeps the original watched dates where possible.
+        Yes. cinefill reads the export zip Letterboxd gives you &mdash; diary
+        entries, ratings, reviews, and watchlist. The import runs on your
+        device, skips anything you&rsquo;ve already logged, and keeps your
+        original watched dates where possible.
       </>
     ),
   },
   {
-    question: "Where do I start an import?",
+    question: "How do I get my Letterboxd export?",
     answer: (
       <>
-        Open the gear in the You tab, choose <em>Import</em>, then select the
-        export zip from Files. Keep the zip intact; cinefill expects the files
-        inside it to stay in their original names and folders.
+        Sign in on the Letterboxd website (this isn&rsquo;t in their app), open{" "}
+        <em>Settings → Import &amp; Export</em>, and choose{" "}
+        <em>Export Your Data</em>. That downloads a zip. Save it to your iPhone
+        &mdash; the Files app is easiest &mdash; then import it in cinefill.
+        Leave the zip as-is; cinefill expects the files inside to keep their
+        original names and folders.
+      </>
+    ),
+  },
+  {
+    question: "Where do I start the import in cinefill?",
+    answer: (
+      <>
+        Open the gear (settings) icon in the You tab, choose <em>Import</em>,
+        then pick the Letterboxd zip from Files.
       </>
     ),
   },
@@ -69,10 +82,12 @@ const syncFaqs = [
     question: "What is sync?",
     answer: (
       <>
-        Sync is an optional way to mirror your cinefill data to a compatible
-        server so another device can pull it down. The app still writes locally
-        first; logging, editing, deleting, and toggling privacy never wait on
-        the network.
+        Sync is an advanced, optional feature for people who can run (or already
+        have) their own server. If that&rsquo;s not you, you can safely skip it
+        &mdash; cinefill works fully without it. When it&rsquo;s on, sync mirrors
+        your data to your server so another device can pull it down. The app
+        still saves on your device first, so logging, editing, deleting, and
+        changing privacy never wait on the network.
       </>
     ),
   },
@@ -80,10 +95,12 @@ const syncFaqs = [
     question: "What data is synced?",
     answer: (
       <>
-        cinefill syncs user-owned records: diary entries, watchlist items, TV
-        episode standouts, deletion markers, timestamps, and a random
-        app-generated device ID. It does not sync the derived TMDB media cache,
-        raw TMDB responses, analytics, contacts, photos, or location.
+        cinefill syncs the things you create: diary entries, watchlist items, TV
+        episode standouts (episodes you&rsquo;ve flagged as favorites), a record
+        of anything you deleted (so your other devices stay in step), sync
+        timestamps, and a random ID the app generates to identify your device.
+        It does not sync cached film and TV data from TMDB, analytics, contacts,
+        photos, or location.
       </>
     ),
   },
@@ -91,12 +108,19 @@ const syncFaqs = [
     question: "How do I set it up?",
     answer: (
       <>
-        Open the gear in the You tab, choose <em>Sync</em>, enter your server
-        URL and personal token, turn on <em>Enable sync</em>, then tap{" "}
-        <em>Sync now</em>. The server must expose cinefill&rsquo;s sync API at{" "}
-        <code className="rounded bg-[var(--color-elevated)] px-1.5 py-0.5 text-[0.85em]">
-          /api/cinefill/v1
-        </code>
+        Open the gear (settings) icon in the You tab, choose <em>Sync</em>, and
+        enter your server URL and personal token. Tap <em>Check connection</em>{" "}
+        to confirm the details work, turn on <em>Enable sync</em>, then tap{" "}
+        <em>Sync now</em>. Your server needs to speak cinefill&rsquo;s sync
+        format at{" "}
+        <Link
+          href="/sync"
+          className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+        >
+          <code className="rounded bg-[var(--color-elevated)] px-1.5 py-0.5 text-[0.85em]">
+            /api/cinefill/v1
+          </code>
+        </Link>
         .
       </>
     ),
@@ -105,10 +129,10 @@ const syncFaqs = [
     question: "What is the personal token?",
     answer: (
       <>
-        The token is a shared secret between your app and your sync server.
-        cinefill stores it in the platform secure store on your device and sends
-        it only as an authorization header when talking to the server URL you
-        entered.
+        Think of the token as a password that only your app and your server
+        know. cinefill keeps it in your device&rsquo;s secure storage (the same
+        protected area apps use for passwords) and sends it only to the server
+        URL you entered, to prove the request is really you.
       </>
     ),
   },
@@ -161,9 +185,10 @@ const syncFaqs = [
     question: "What do deletes do?",
     answer: (
       <>
-        With sync enabled, deletes become tombstones so other devices can learn
-        that a record was removed. Resetting all data while sync is enabled is
-        therefore a cross-device destructive action.
+        With sync on, deleting something leaves behind a small &ldquo;this was
+        removed&rdquo; marker so your other devices know to remove it too. That
+        means resetting all data while sync is on erases it everywhere, not just
+        on the device in your hand.
       </>
     ),
   },
@@ -220,10 +245,17 @@ export default function FAQPage() {
           <section className="mt-12 rounded-2xl border border-[var(--color-border)]/70 bg-[var(--color-elevated)]/40 p-6">
             <h2 className="font-display text-2xl">Still stuck?</h2>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
-              The short version: save your server URL and token, run Sync Now,
+              The short version: save your server URL and token, tap Sync now,
               then check the status message. If the server rejects the request,
               verify that the token matches your server&rsquo;s configured
-              sync token.
+              sync token. If you&rsquo;re running your own server, start with the{" "}
+              <Link
+                href="/sync"
+                className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+              >
+                sync setup guide
+              </Link>
+              .
             </p>
             <p className="mt-4 text-[var(--color-text-soft)] leading-[1.7]">
               For privacy details, read the{" "}
