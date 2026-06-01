@@ -43,20 +43,20 @@ export function Nav() {
             FAQ
           </Link>
           <Link
-            href="/#testflight"
+            href="/#download"
             className="group relative inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-accent)] px-5 text-[0.8125rem] font-semibold text-[var(--color-accent-on)]"
           >
             <span className="absolute inset-0 rounded-xl bg-[var(--color-accent)]/30 opacity-0 blur-lg transition-opacity group-hover:opacity-100" />
             <AppleIcon className="relative h-4 w-4" />
-            <span className="relative">TestFlight</span>
+            <span className="relative">App Store</span>
           </Link>
         </div>
         <Link
-          href="/#testflight"
+          href="/#download"
           className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 text-sm font-semibold text-[var(--color-accent-on)] md:hidden"
         >
           <AppleIcon className="h-4 w-4" />
-          TestFlight
+          App Store
         </Link>
       </div>
     </nav>

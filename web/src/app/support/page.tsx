@@ -9,7 +9,7 @@ const SUPPORT_EMAIL = "nerdbrainmatter@gmail.com";
 export const metadata: Metadata = {
   title: "Support",
   description:
-    "How to get help with cinefill — contact, common issues, bug reports, TestFlight notes.",
+    "How to get help with cinefill — contact, common issues, bug reports, and App Store support.",
   alternates: { canonical: "/support" },
 };
 
@@ -24,9 +24,9 @@ export default function SupportPage() {
             Need a hand?
           </h1>
           <p className="mt-5 text-[var(--color-text-soft)] leading-[1.75]">
-            cinefill is a one-person project. I read every message during the
-            beta and reply quickly. Tell me what you were doing and the iPhone
-            model + iOS version helps a lot.
+            cinefill is a one-person project. I read every message and reply
+            quickly. Tell me what you were doing and the iPhone model + iOS
+            version helps a lot.
           </p>
 
           <section className="mt-12">
@@ -164,13 +164,11 @@ export default function SupportPage() {
           </section>
 
           <section className="mt-12">
-            <h2 className="font-display text-2xl">TestFlight notes</h2>
+            <h2 className="font-display text-2xl">App Store notes</h2>
             <p className="mt-3 text-[var(--color-text-soft)] leading-[1.7]">
-              TestFlight builds expire 90 days after the build date. A fresh
-              build will appear in TestFlight before the current one stops
-              working &mdash; just open the TestFlight app to install it. If
-              you ever lose access to the beta, email me and I&rsquo;ll send a
-              new invite.
+              Install updates from the App Store when they appear. If something
+              feels off after an update, email me with the app version and what
+              changed.
             </p>
           </section>
         </article>

@@ -11,7 +11,7 @@ import { Reveal } from "./reveal";
 
 /* ═══════════════════════════════════════════════ structured data */
 
-const TESTFLIGHT_URL = "https://testflight.apple.com/join/7eqjVY9X";
+const APP_STORE_URL = "https://apps.apple.com/us/app/cinefill/id6768740397";
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -313,9 +313,72 @@ export default function Home() {
           </Reveal>
         </section>
 
+        {/* ────────────────────── Showcase ────────────────────── */}
+        <section className="relative border-y border-[var(--color-border)]/60 px-6 py-24 lg:px-10">
+          <div className="mx-auto max-w-5xl">
+            <Reveal>
+              <SectionEyebrow title="Showcase" align="center" />
+              <h2 className="mt-4 text-center font-display text-[clamp(2rem,4vw,3.25rem)] leading-[1.05] tracking-[-0.01em]">
+                Public shelves, only when you choose.
+              </h2>
+              <p className="mx-auto mt-5 max-w-2xl text-center leading-[1.75] text-[var(--color-text-muted)]">
+                cinefill stays private by default, but sync can power a public
+                media page for entries you explicitly share.
+              </p>
+            </Reveal>
+
+            <Reveal delay={160} className="mt-12">
+              <a
+                href="https://ovie.dev/media"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="group block rounded-2xl border border-[var(--color-border)]/80 bg-[var(--color-surface)]/40 p-7 transition-colors hover:border-[var(--color-border-strong)] md:p-9"
+              >
+                <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="text-[0.6875rem] font-medium uppercase tracking-[0.22em] text-[var(--color-accent)]/55">
+                      First public shelf
+                    </p>
+                    <h3 className="mt-3 font-display text-2xl leading-tight">
+                      Ovie&rsquo;s media log
+                    </h3>
+                    <p className="mt-3 max-w-2xl leading-[1.7] text-[var(--color-text-muted)]">
+                      A personal shelf of watched films, shows, ratings, notes,
+                      and a tiny watchlist, published from cinefill sync.
+                    </p>
+                  </div>
+                  <span className="inline-flex text-sm font-semibold text-[var(--color-accent)] transition-colors group-hover:text-[var(--color-accent-strong)]">
+                    View the showcase
+                  </span>
+                </div>
+                <div className="mt-7 grid gap-3 text-sm text-[var(--color-text-soft)] sm:grid-cols-4">
+                  {[
+                    ["55", "watched"],
+                    ["52", "movies"],
+                    ["4", "shows"],
+                    ["3.75", "avg rating"],
+                  ].map(([value, label]) => (
+                    <div
+                      key={label}
+                      className="rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-bg)]/35 p-4"
+                    >
+                      <div className="font-display text-2xl text-[var(--color-text)]">
+                        {value}
+                      </div>
+                      <div className="mt-1 text-[0.75rem] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+                        {label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </a>
+            </Reveal>
+          </div>
+        </section>
+
         {/* ────────────────────── Final CTA ────────────────────── */}
         <section
-          id="testflight"
+          id="download"
           className="relative flex min-h-[60vh] items-center justify-center px-6 py-32 lg:px-10"
         >
           <div
@@ -328,22 +391,22 @@ export default function Home() {
               A diary worth keeping.
             </h2>
             <p className="mt-2 font-display text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.9] text-[var(--color-accent)] text-glow">
-              Join the TestFlight.
+              Now on the App Store.
             </p>
             <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-[var(--color-text-muted)]">
-              iPhone, iOS 17+. First access, direct line to the team, a say in
-              what comes&nbsp;next.
+              Download cinefill for iPhone. Local-first, private by default,
+              and ready for your next watch.
             </p>
             <div className="mt-9 flex justify-center">
               <a
-                href={TESTFLIGHT_URL}
+                href={APP_STORE_URL}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="group relative inline-flex h-14 items-center gap-3 rounded-2xl bg-[var(--color-accent)] px-8 text-[1.0625rem] font-semibold text-[var(--color-accent-on)]"
               >
                 <span className="absolute inset-0 rounded-2xl bg-[var(--color-accent)]/30 blur-xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                 <AppleIcon className="relative h-5 w-5" />
-                <span className="relative">Join the TestFlight</span>
+                <span className="relative">Download on the App Store</span>
               </a>
             </div>
           </Reveal>

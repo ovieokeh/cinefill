@@ -3,7 +3,7 @@ import { Reveal } from "@/app/reveal";
 import { AppleIcon } from "@/components/nav";
 import { DeviceFrame } from "@/components/device-frame";
 
-const TESTFLIGHT_URL = "https://testflight.apple.com/join/7eqjVY9X";
+const APP_STORE_URL = "https://apps.apple.com/us/app/cinefill/id6768740397";
 
 export function Hero() {
   return (
@@ -26,14 +26,14 @@ export function Hero() {
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-4 md:justify-start">
             <a
-              href={TESTFLIGHT_URL}
+              href={APP_STORE_URL}
               target="_blank"
               rel="noreferrer noopener"
               className="group relative inline-flex h-14 items-center gap-3 rounded-2xl bg-[var(--color-accent)] px-8 text-[1.0625rem] font-semibold text-[var(--color-accent-on)]"
             >
               <span className="absolute inset-0 rounded-2xl bg-[var(--color-accent)]/30 blur-xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <AppleIcon className="relative h-5 w-5" />
-              <span className="relative">Join the TestFlight</span>
+              <span className="relative">Download on the App Store</span>
             </a>
             <a
               href="#loop"

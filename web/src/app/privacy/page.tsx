@@ -138,10 +138,10 @@ export default function PrivacyPage() {
                 not required to use the app.
               </li>
               <li>
-                <strong className="text-[var(--color-text)]">Apple TestFlight</strong>{" "}
-                (during the beta). If you&rsquo;re running the TestFlight
-                build, Apple collects standard TestFlight crash and usage
-                telemetry under their own privacy policy at{" "}
+                <strong className="text-[var(--color-text)]">Apple App Store</strong>
+                . If you download cinefill from the App Store, Apple processes
+                standard App Store download, purchase, diagnostics, and account
+                data under their own privacy policy at{" "}
                 <a
                   href="https://www.apple.com/legal/privacy/"
                   target="_blank"
@@ -150,7 +150,7 @@ export default function PrivacyPage() {
                 >
                   apple.com/legal/privacy
                 </a>
-                . This stops applying once cinefill is on the App Store.
+                .
               </li>
             </ul>
             <p className="mt-5 text-[var(--color-text-soft)] leading-[1.7]">
