@@ -95,6 +95,10 @@ export default function RootLayout({
         <OpenPanelComponent
           apiUrl="https://analytics.ovie.dev"
           clientId="24f3f03f-d7af-4d97-bdf2-e63343fef23d"
+          // Self-hosted copy of the tracker (public/op1.js); the default is
+          // openpanel.dev's CDN, which we saw return 503s. Re-download when
+          // bumping @openpanel/nextjs.
+          cdnUrl="/op1.js"
           trackScreenViews
           trackOutgoingLinks
         />
