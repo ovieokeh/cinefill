@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import { OpenPanelComponent } from "@openpanel/nextjs";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -91,6 +92,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${fraunces.variable} ${inter.variable} antialiased`}>
+        <OpenPanelComponent
+          apiUrl="https://analytics.ovie.dev"
+          clientId="24f3f03f-d7af-4d97-bdf2-e63343fef23d"
+          trackScreenViews
+          trackOutgoingLinks
+        />
         {children}
       </body>
     </html>
