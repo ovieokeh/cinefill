@@ -27,6 +27,7 @@ export type GenreRef = { id: number; name: string };
 export type MovieDetails = {
   tmdbId: number;
   title: string;
+  year: string | null;
   tagline: string;
   overview: string;
   runtime: number | null;
@@ -104,6 +105,7 @@ type RawRecommendation = {
 type RawMovieDetails = {
   id: number;
   title: string;
+  release_date: string | null;
   tagline: string;
   overview: string;
   runtime: number | null;
@@ -1149,6 +1151,10 @@ export async function getMovieDetails(
   return {
     tmdbId: raw.id,
     title: raw.title,
+    year:
+      raw.release_date && raw.release_date.length >= 4
+        ? raw.release_date.slice(0, 4)
+        : null,
     tagline: raw.tagline ?? '',
     overview: raw.overview ?? '',
     runtime: raw.runtime ?? null,

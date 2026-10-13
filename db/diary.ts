@@ -264,6 +264,29 @@ export async function listEntries(): Promise<DiaryEntry[]> {
   return rows.map(rowToEntry);
 }
 
+export async function fillMissingMovieYear(
+  tmdbId: number,
+  year: string,
+): Promise<number> {
+  if (config.reviewMode) return 0;
+  const db = await getDb();
+  const updatedAt = Date.now();
+  const deviceId = await getDeviceId();
+  const result = await db.runAsync(
+    `UPDATE entries
+     SET year = ?, updated_at = ?, dirty = 1, last_modified_device_id = ?
+     WHERE tmdb_id = ? AND media_type = 'movie' AND deleted_at IS NULL
+       AND (year IS NULL OR trim(year) = '')`,
+    year,
+    updatedAt,
+    deviceId,
+    tmdbId,
+  );
+  const changed = result.changes ?? 0;
+  if (changed > 0) notifySyncNeeded();
+  return changed;
+}
+
 export async function updateEntry(
   id: number,
   patch: Pick<DiaryEntry, 'watchedDate' | 'rating' | 'note'>,

@@ -135,7 +135,7 @@ export default function MovieScreen() {
   }, [tmdbId, validTmdbId, retryKey]);
 
   const heroTitle = details?.title ?? entry?.title ?? seedTitle ?? '';
-  const heroYear = entry?.year ?? seedYear;
+  const heroYear = details?.year ?? entry?.year ?? seedYear;
   const heroPosterPath = details?.posterPath ?? entry?.posterPath ?? seedPosterPath;
 
   const navTitle = showNavTitle && heroTitle ? heroTitle : '';

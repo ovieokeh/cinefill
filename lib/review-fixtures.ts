@@ -588,6 +588,7 @@ export function reviewMovieDetails(tmdbId: number) {
   return {
     tmdbId: movie.tmdbId,
     title: movie.title,
+    year: movie.year,
     tagline: movie.tagline,
     overview: movie.overview,
     runtime: movie.runtime,

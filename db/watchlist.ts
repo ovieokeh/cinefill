@@ -340,6 +340,29 @@ export async function listWatchlist(): Promise<WatchlistItem[]> {
   return rows.map(rowToItem);
 }
 
+export async function fillMissingWatchlistMovieYear(
+  tmdbId: number,
+  year: string,
+): Promise<number> {
+  if (config.reviewMode) return 0;
+  const db = await getDb();
+  const updatedAt = Date.now();
+  const deviceId = await getDeviceId();
+  const result = await db.runAsync(
+    `UPDATE watchlist
+     SET year = ?, updated_at = ?, dirty = 1, last_modified_device_id = ?
+     WHERE tmdb_id = ? AND media_type = 'movie' AND deleted_at IS NULL
+       AND (year IS NULL OR trim(year) = '')`,
+    year,
+    updatedAt,
+    deviceId,
+    tmdbId,
+  );
+  const changed = result.changes ?? 0;
+  if (changed > 0) notifySyncNeeded();
+  return changed;
+}
+
 export async function listDirtyWatchlistRecords(): Promise<WatchlistItemRecord[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(

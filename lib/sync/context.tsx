@@ -12,6 +12,7 @@ import { AppState } from 'react-native';
 
 import { getSyncMeta, type SyncMeta } from '@/db/sync';
 import { useFilmContext } from '@/lib/film-context';
+import { repairMissingMovieYears } from '@/lib/movie-year-repair';
 import { runSync, type SyncRunResult } from './client';
 import { subscribeSyncNeeded } from './events';
 
@@ -51,6 +52,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setPhase('syncing');
       try {
         const result = await runSync();
+        await repairMissingMovieYears();
         setLastResult(result);
         await refresh();
         await reload();
